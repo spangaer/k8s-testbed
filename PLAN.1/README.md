@@ -12,7 +12,7 @@ stack: 2 naive Spring Boot services that log straight to Kafka, with OpenSearch 
 
 The devcontainer runs under rootless podman. These were probed, not assumed:
 
-- no `/dev/kvm`, `/dev/net/tun` or `/dev/fuse`
+- no `/dev/kvm`, `/dev/net/tun` or `/dev/fuse` (step 7 passes `/dev/kvm` through when allowed)
 - no effective capabilities for `vscode`; `sudo` root has a reduced set, without `sys_admin`,
   `net_admin` or `mknod`
 - nested user namespaces work, and so do mount, pid and net namespaces inside them
@@ -20,14 +20,15 @@ The devcontainer runs under rootless podman. These were probed, not assumed:
   of `/proc`, `/sys` and `/dev` work
 - the container only has IDs 0..65536, so subordinate ID ranges must fit inside that
 
-Giving the devcontainer privileges or devices is **off limits**, so KVM, docker-in-docker and
-kind/k3d are out.
+Giving the devcontainer privileges or devices is **off limits**, so docker-in-docker and
+kind/k3d are out. KVM is the one exception: `/dev/kvm` is passed through when the host user
+already has access, but it's never required (step 7).
 
 ## Decisions
 
 | Topic | Decision | Why |
 |---|---|---|
-| Cluster runtime | QEMU, TCG software emulation | the only option that works without privileges |
+| Cluster runtime | QEMU, KVM if granted, else TCG | TCG needs no privileges; KVM is far faster |
 | Guest OS | Debian 13 cloud image + cloud-init | matches the devcontainer, familiar |
 | Kubernetes | k3s, single node | light, and includes `local-path` PVC support |
 | Networking | QEMU user mode (slirp) + `hostfwd` | needs no tun device or capabilities |
@@ -50,7 +51,7 @@ Resolved: k3s `v1.36.5+k3s1` (the `stable` channel) and kubectl `v1.36.5`. All p
 ## Design
 
 ```
-devcontainer                                   cluster VM (TCG), Debian 13
+devcontainer                                   cluster VM (KVM or TCG), Debian 13
 ┌───────────────────────────────┐              ┌───────────────────────────┐
 │ podman build/push             │              │ k3s / containerd          │
 │   → registry 127.0.0.1:5000 ◄─┼── slirp ─────┼── pull 10.0.2.2:5000      │
@@ -58,7 +59,7 @@ devcontainer                                   cluster VM (TCG), Debian 13
 │ ssh     → 127.0.0.1:2222 ─────┼── hostfwd ──►│   sshd :22                │
 │ curl    → 127.0.0.1:8080 ─────┼── hostfwd ──►│   traefik :80             │
 │                               │              └───────────────────────────┘
-│                               │              build VM (TCG), on demand
+│                               │              build VM (KVM or TCG), on demand
 │                               │              ┌───────────────────────────┐
 │ docker  → 127.0.0.1:2375 ─────┼── hostfwd ──►│   dockerd :2375           │
 │ ssh     → 127.0.0.1:2223 ─────┼── hostfwd ──►│   sshd :22                │
@@ -130,6 +131,8 @@ devcontainer                                   cluster VM (TCG), Debian 13
     log and QEMU log. `cluster/` also holds `kubeconfig`, the admin credentials, written
     automatically with mode `0600`
   - `.local/registry/`: registry storage in `storage/`, plus its pid file and log
+  - `.local/host/`: written on the host by `kvm-link.sh`: `kvm`, a link to `/dev/kvm` or to
+    `/dev/null`
   - `.local/podman/`: Podman image/build storage, configured by `setup`. It holds files owned
     by mapped IDs, so plain `rm` and `du` fail. Clean up with `podman rmi`,
     `podman system prune` or, to wipe it all, `podman system reset`; for raw file access, use
@@ -138,12 +141,13 @@ devcontainer                                   cluster VM (TCG), Debian 13
   to `n` vCPUs if `n < 4`, 4 if `4 <= n < 8`, and `floor(n / 2)` otherwise. RAM defaults to
   6 GB and disk to 30 GB; all sizes are overridable as `just` variables.
   The build VM defaults to 4 vCPUs (fewer if `n < 4`), 3 GB RAM and 20 GB disk.
-  TCG runs with `-accel tcg,thread=multi -cpu max`.
+  TCG runs with `-accel tcg,thread=multi -cpu max`; KVM, when available, with `-accel kvm`.
 
 ### Proposed source layout
 
 ```
 justfile                       recipes, see below
+.devcontainer/kvm-link.sh      on the host: link /dev/kvm for the devcontainer if usable
 versions.just                  pinned versions and checksums, imported by the justfile
 env/setup.sh                   devcontainer setup, run by `just setup`
 env/fetch.sh                   fetch a pinned download into the cache, verify its checksum
@@ -166,7 +170,7 @@ The `vm-*` recipes act on the cluster VM by default, and on the build VM with `j
 
 | Recipe | Does |
 |---|---|
-| `setup` | devcontainer setup: ID mapping, kubectl, containers config; run on create |
+| `setup` | devcontainer setup: ID mapping, kubectl, containers config, KVM group; run on create |
 | `registry-up` / `registry-down` | start or stop the registry process |
 | `vm-image` | fill the cache if needed, create the qcow2 overlay and seed |
 | `vm-up` / `vm-down` | boot the VM (daemonized) and wait for k3s or Docker / shut down cleanly |
@@ -255,7 +259,7 @@ changing it.
 
       Covered by S2, part 2: the build VM pushed to `10.0.2.2:5000`, with the same Debian
       image and slirp networking as the cluster VM. The k3s mirror config for plain-HTTP
-      pulls is left to step 9, which tests it end to end; a separate spike would mean building
+      pulls is left to step 10, which tests it end to end; a separate spike would mean building
       the cluster VM by hand once more.
 
 ### Implementation
@@ -362,27 +366,79 @@ changing it.
        `vm_disk=40G`, a stale pid file naming another process, a taken port, `kill -9` of QEMU
        then `vm-up`, `vm-reset` of a running VM and a fresh start without downloads, and
        `kubectl get nodes` with the written kubeconfig.
-7. [ ] `KUBECONFIG` and `DOCKER_HOST`: the `justfile` exports both, so recipes work in any
+7. [x] KVM when the host grants it, TCG otherwise. TCG stays supported, as Codespaces has no
+       KVM, and a missing `/dev/kvm` must never stop the devcontainer from starting.
+       - devcontainer: `runArgs` can't be conditional, so `initializeCommand` first runs
+         `.devcontainer/kvm-link.sh` on the host. It points `.local/host/kvm` at `/dev/kvm` if a
+         probe container can open it, else at `/dev/null`, and `runArgs` passes that link to
+         `--device` as `/dev/kvm`. Docker and Podman resolve the link at creation, so a host
+         change needs a rebuild. Unlike a bind mount, `--device` also gets past rootful Docker's
+         device cgroup.
+       - probe: what counts is the devcontainer's user, not the host user. The script runs
+         `busybox` the way Dev Containers runs the devcontainer and opens `/dev/kvm`: with
+         `--userns=keep-id --security-opt label=disable` if `<cli> -v` says Podman, else with
+         `--user` set to the host user's IDs. If that fails, it retries with `--group-add` for
+         the device's group, which `setup` can add. The CLI is VS Code's
+         `dev.containers.dockerPath` (user settings, one key per line), else `docker`, else
+         `podman`. The link changes only once that's decided.
+       - access: rootless Podman passes the host's node, so the logind `uaccess` ACL of a
+         desktop session applies to `vscode`, which maps to the host user. Rootful Docker
+         creates its own node with the host's mode and group, but no ACL. So if a real
+         `/dev/kvm` doesn't open, `setup` adds `vscode` to a group with the device's ID,
+         creating `host-kvm` if there's none. Groups are fixed when a process starts, and the
+         VS Code server survives a window reload, so `waitFor: postCreateCommand` makes VS Code
+         connect only after `setup`; after a manual `setup`, restart the container or use
+         `newgrp`. Under rootless Podman, the host's `kvm` group is unmapped, so group-only
+         access, e.g. on a headless host, falls back to TCG; `--group-add=keep-groups` would fix
+         that, but it's Podman-only.
+       - CI: GitHub's Linux runners have `/dev/kvm`, but the job has neither a seat ACL nor the
+         group. A workflow step opens it up with GitHub's udev rule (`MODE="0666"`); CI likely
+         uses a prebuilt image, so `kvm-link.sh` hardly matters there.
+       - `vm.sh` picks `-accel kvm` if `/dev/kvm` is the KVM device (10:232, unlike the
+         `/dev/null` fallback) and opens read-write, else `-accel tcg,thread=multi`, both with
+         `-cpu max`, and names the choice in the start message. QEMU's own fallback,
+         `-accel kvm -accel tcg`, would only warn in `qemu.log`. `vm_accel` (`auto`, `kvm` or
+         `tcg`) overrides the choice.
+       - verify: TCG still works, and `vm_accel=kvm` fails clearly without KVM. On a KVM host,
+         measure first boot, warm start and k3s readiness against the TCG numbers.
+
+       Done: readiness timeouts and polling also follow the running VM's accelerator: TCG keeps
+       15/6 min and 5 s, KVM gets 5/2 min and 2 s, several times the measured boots.
+       Verified: without KVM, `auto` uses TCG, and `vm_accel=kvm` and an unknown value fail
+       before QEMU starts. On a KVM host, with 8 vCPUs and 6 GB, KVM vs TCG: first boot 1m09s
+       vs 6-7 min, warm start 33-40s vs 2-3 min; `vm_accel=tcg` still works, `test-vm-ssh`
+       passes and the node is `Ready`. These runs used a bind mount of the link, since replaced
+       by `--device`; Podman and Docker (Rancher Desktop on WSL) both follow a symlinked source.
+       The probe, with nested Podman and fake settings: `podman` from the setting and a
+       `docker` wrapping Podman link the device (0.2 s, image cached); a CLI claiming to be
+       Docker, so without `keep-id`, gets "Permission denied", also with the group retry; a
+       `docker` without a daemon and a missing CLI fall back to `/dev/null`, with the reason.
+       `--device` follows the link to either target, and `/dev/null` shows as 1:3.
+       `setup`'s group fix, with the open forced to fail: an unmapped group only gets a note, a
+       free group ID gets `host-kvm` and the membership, and a rerun only the note.
+       Untested, as there's no Docker daemon here: rootful Docker end to end.
+8. [ ] `KUBECONFIG` and `DOCKER_HOST`: the `justfile` exports both, so recipes work in any
        context, e.g. CI, not only the devcontainer. Use `env()` defaults, so a caller's value
        wins: `env("KUBECONFIG", justfile_directory() / ".local/vm/cluster/kubeconfig")`.
        `remoteEnv` in devcontainer.json sets the same values, so a plain `kubectl` and
        `docker` work in VS Code terminals too.
-8. [ ] Smoke test with a public image (`traefik/whoami`) to verify the cluster without the
+9. [ ] Smoke test with a public image (`traefik/whoami`) to verify the cluster without the
        registry.
-9. [ ] `hello`: build a tiny image with `podman build`, push it to `localhost:5000`, deploy
-       it, then reach it through the ingress with `curl http://hello.localhost:8080/`. Use a
-       fresh image tag for each invocation, update the Deployment image, and wait for rollout
-       before checking the expected response. Verify a changed image is served on a repeated run.
-10. [ ] Build VM: `env/vm/build/user-data.yaml` with the Docker install, `daemon.json` and the
+10. [ ] `hello`: build a tiny image with `podman build`, push it to `localhost:5000`, deploy
+        it, then reach it through the ingress with `curl http://hello.localhost:8080/`. Use a
+        fresh image tag for each invocation, update the Deployment image, and wait for
+        rollout before checking the expected response. Verify a changed image is served on a
+        repeated run.
+11. [ ] Build VM: `env/vm/build/user-data.yaml` with the Docker install, `daemon.json` and the
         TCP drop-in, see [Design](#design), and the build VM's settings for the step 6 recipes:
         ssh on `2223`, `hostfwd` for `2375`, and `vm-up` waits until `docker version` reaches
         the daemon. `hello` with `builder=docker` brings the build VM up if needed, then builds
         with `docker build` and pushes as `10.0.2.2:5000/hello:<tag>`.
-11. [ ] Agent skill to bump pinned versions in `versions.just` (cloud image, k3s artifacts,
+12. [ ] Agent skill to bump pinned versions in `versions.just` (cloud image, k3s artifacts,
         `install.sh` revision, kubectl). Take checksums from the upstream checksum
         files, keep k3s and kubectl on the same minor, and validate with `just vm-reset`,
         `just up`, `just hello` and `just builder=docker hello`.
-12. [ ] Transfer the spike learnings, so the spike logs are no longer needed. The why goes
+13. [ ] Transfer the spike learnings, so the spike logs are no longer needed. The why goes
         next to the what: inline comments in scripts, recipes, config and cloud-init
         templates are the first choice. The overview goes to `docs/udd/testsetup/`: how the
         pieces fit together, the devcontainer constraints and how each part works around
@@ -390,7 +446,7 @@ changing it.
         don't belong to a single file. Drop the redundant parts, like command transcripts
         and the step-by-step probing, but keep the explanations of why, and the key
         measurements behind sizing and timeouts.
-13. [ ] Docs: fill in [project.md](../.agents/project.md) with the layout and recipes, and add
+14. [ ] Docs: fill in [project.md](../.agents/project.md) with the layout and recipes, and add
         the skill to the [agent index](../.agents/README.md). In the root README, add the end
         goal (see [Goal](#goal)) and a short usage section that links to `docs/udd/testsetup/`.
 
@@ -409,7 +465,7 @@ changing it.
 ## Risks and open points
 
 - **TCG speed.** Boot and k3s startup may take minutes. Readiness waits must be generous, and
-  later JVM workloads will be slow.
+  later JVM workloads will be slow. KVM avoids that where the host grants it (step 7).
 - **External downloads.** The cloud image and k3s artifacts come from `cloud.debian.org` and the
   k3s GitHub releases. They're cached in `.local/cache/`, so only the first run or a version bump
   hits the network. Public images pulled inside the guest (e.g. `traefik/whoami`) aren't cached
@@ -425,6 +481,7 @@ changing it.
 - persistent data disk for `local-path` PVCs (second qcow2 disk)
 - 2 naive Spring Boot services, logging straight to Kafka from the JVM (no files, no shipper)
 - Kafka (KRaft, single broker) and OpenSearch (single node, small heap) on PVCs
-- if JVM startup under TCG gets painful: a generous `startupProbe` and
-  `-XX:TieredStopAtLevel=1`
+- `-XX:TieredStopAtLevel=1` for the JVM services: C1 only, without C2 and profiling, saves
+  memory and startup CPU at some cost in peak throughput; under TCG, add a generous
+  `startupProbe`
 - the operator itself, in Rust (kube-rs), running natively in the devcontainer against `:6443`

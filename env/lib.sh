@@ -59,3 +59,10 @@ wait_for() {
         sleep "${wait_interval:-1}"
     done
 }
+
+# The real KVM device, 10:232; without it, .devcontainer/kvm-link.sh passes /dev/null instead.
+# stat prints the numbers in hex.
+kvm_device() { [[ -c /dev/kvm && $(stat -L -c %t:%T /dev/kvm) == a:e8 ]]; }
+
+# opens it read-write, as permissions alone miss a device cgroup that denies it
+kvm_opens() { { : 3<> /dev/kvm; } 2> /dev/null; }

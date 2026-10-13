@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# devcontainer setup: ID mapping, kubectl and containers config
+# devcontainer setup: ID mapping, kubectl, containers config and, if needed, the KVM group
 # Safe to rerun: it only changes what differs, so it also repairs what a package upgrade reset.
 # Root-level changes are lost on a devcontainer rebuild, so postCreateCommand reruns this.
 # usage: setup.sh <local dir> <kubectl file> <kubectl url> <kubectl sha256>
@@ -118,6 +118,35 @@ insecure = true
 EOF
 
 install -d -m 0700 "$runroot"
+
+# --- KVM, when the container got the device, but the user can't open it
+
+# Rootful Docker creates its own /dev/kvm node with the host's group, e.g. kvm, and the host's
+# ACL for the user doesn't carry over. Group membership from the container's /etc/group lasts
+# across restarts, which recreate the node. A process's groups are fixed when it starts, so
+# devcontainer.json waits for this before connecting. Under rootless Podman, the user opens it
+# already, and an unmapped group, shown as the overflow ID, can't be joined anyway.
+if kvm_device && ! kvm_opens; then
+    gid=$(stat -L -c %g /dev/kvm)
+    if [[ $gid == "$(< /proc/sys/kernel/overflowgid)" ]]; then
+        note "/dev/kvm doesn't open, and its group isn't mapped here, so VMs use TCG"
+    else
+        group=$(getent group "$gid" | cut -d: -f1) || true
+        if [[ -z $group ]]; then
+            group=host-kvm
+            sudo -n groupadd -g "$gid" "$group"
+            note "added group $group ($gid), the group of /dev/kvm"
+        fi
+        if id -nG "$user" | tr ' ' '\n' | grep -qx "$group"; then
+            note "$user is in $group, the group of /dev/kvm, but this shell started before;" \
+                "restart the container, or run newgrp $group"
+        else
+            sudo -n usermod -aG "$group" "$user"
+            note "added $user to $group, the group of /dev/kvm; shells started before only get" \
+                "it after a container restart, or with newgrp $group"
+        fi
+    fi
+fi
 
 # --- check
 

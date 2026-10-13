@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# Manage a QEMU VM under TCG: create its disk and seed, boot it and wait until it's ready, shut
-# it down cleanly, ssh into it, reset it, and copy the cluster's kubeconfig out.
+# Manage a QEMU VM: create its disk and seed, boot it and wait until it's ready, shut it down
+# cleanly, ssh into it, reset it, and copy the cluster's kubeconfig out.
 # usage: vm.sh <vm> image <local dir> <base image> [<name in iso>=<file>...]
 #        vm.sh <vm> up|down|reset|kubeconfig <local dir>
 #        vm.sh <vm> ssh <local dir> [<command> [<arg>...]]
 # Sizing comes from VM_CPUS, VM_MEM and VM_DISK; if empty, the VM's default applies.
+# VM_ACCEL is auto (KVM if usable, else TCG), kvm or tcg.
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
@@ -43,7 +44,8 @@ default_cpus() {
 }
 
 # Per VM: ssh port, other forwards as <host port>:<guest port>, sizing, readiness phases (each
-# with ready_<phase> and status_<phase> functions) and timeouts for first and later boots.
+# with ready_<phase> and status_<phase> functions) and timeouts in seconds for first and later
+# boots, per accelerator.
 case $vm in
     cluster)
         ssh_port=2222
@@ -51,9 +53,9 @@ case $vm in
         forwards=(6443:6443 8080:80)
         cpus=${VM_CPUS:-$(default_cpus)} mem=${VM_MEM:-6G} disk_size=${VM_DISK:-30G}
         phases=(boot cloud-init node addons ingress)
-        # first boot with the k3s install took 6-7 min, a warm boot ~3 min, both with 8 vCPUs;
-        # fewer vCPUs are slower
-        first_timeout=900 warm_timeout=360
+        # with 8 vCPUs, the first boot with the k3s install took 6-7 min under TCG and ~1 min
+        # under KVM, a warm boot ~3 min and under 1 min; fewer vCPUs are slower
+        timeouts_tcg=(900 360) timeouts_kvm=(300 120)
         ;;
     *) die "unknown vm '$vm', expected cluster" ;;
 esac
@@ -244,18 +246,40 @@ image() {
     note "created the $vm VM: $disk_size disk, backed by $(basename "$base")"
 }
 
+kvm_usable() { kvm_device && kvm_opens; }
+
+# Decide here rather than with QEMU's -accel kvm -accel tcg, whose fallback only warns into
+# qemu.log.
+pick_accel() {
+    case ${VM_ACCEL:-auto} in
+        auto) if kvm_usable; then echo kvm; else echo tcg; fi ;;
+        kvm)
+            kvm_device || die "vm_accel=kvm, but there's no /dev/kvm here; give the host user" \
+                "access to it, then rebuild the devcontainer"
+            kvm_opens || die "vm_accel=kvm, but /dev/kvm doesn't open; run just setup, which" \
+                "may add a group, then restart the container"
+            echo kvm
+            ;;
+        tcg) echo tcg ;;
+        *) die "unknown vm_accel '$VM_ACCEL', expected auto, kvm or tcg" ;;
+    esac
+}
+
 start_qemu() {
-    local fwd f
+    local fwd f accel opts
     # QEMU uses commas to separate options
     [[ $dir != *,* ]] || die "QEMU can't take paths with a comma: $dir"
+    accel=$(pick_accel)
+    opts=$accel
+    [[ $accel != tcg ]] || opts+=,thread=multi
     fwd=hostfwd=tcp:127.0.0.1:$ssh_port-:22
     for f in "${forwards[@]}"; do
         fwd+=,hostfwd=tcp:127.0.0.1:${f%%:*}-:${f#*:}
     done
     rm -f "$pid_file" "$qmp"
-    note "starting the $vm VM, $cpus vCPUs, $mem RAM"
+    note "starting the $vm VM, $cpus vCPUs, $mem RAM, ${accel^^}"
     # -daemonize returns once QEMU is set up, so errors like a taken port show here
-    "$exe" -name "lrs-k8s-$vm" -accel tcg,thread=multi -cpu max -smp "$cpus" -m "$mem" \
+    "$exe" -name "lrs-k8s-$vm" -accel "$opts" -cpu max -smp "$cpus" -m "$mem" \
         -drive "file=$disk,if=virtio,format=qcow2" \
         -drive "file=$dir/seed.iso,if=virtio,format=raw,readonly=on" \
         -netdev "user,id=n0,$fwd" -device virtio-net-pci,netdev=n0 \
@@ -265,8 +289,13 @@ start_qemu() {
     [[ $(pid) ]] || die "QEMU started, but $pid_file doesn't name it, see $qemu_log"
 }
 
+# the accelerator of the running VM, from the value after -accel in its command line
+running_accel() {
+    tr '\0' '\n' < "/proc/$(pid)/cmdline" | sed -n '/^-accel$/{n;s/,.*//;p;q}'
+}
+
 up() {
-    local p phase fn timeout=$warm_timeout
+    local p phase fn accel timeouts timeout
     [[ -f $disk ]] || die "the $vm VM has no disk, create it with $(recipe vm-image)"
     p=$(pid)
     if [[ $p ]]; then
@@ -274,9 +303,15 @@ up() {
     else
         start_qemu
     fi
-    [[ -f $provisioned ]] || timeout=$first_timeout
+    accel=$(running_accel)
     # each check runs ssh, and some k3s kubectl, which are slow under TCG, so poll less often
-    wait_start=$SECONDS wait_interval=5
+    case $accel in
+        kvm) timeouts=("${timeouts_kvm[@]}") wait_interval=2 ;;
+        *) timeouts=("${timeouts_tcg[@]}") wait_interval=5 ;;
+    esac
+    timeout=${timeouts[1]}
+    [[ -f $provisioned ]] || timeout=${timeouts[0]}
+    wait_start=$SECONDS
     for phase in "${phases[@]}"; do
         fn=${phase//-/_}
         wait_for "$timeout" "$phase" "status_$fn" "ready_$fn" \

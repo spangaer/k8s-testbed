@@ -16,6 +16,10 @@ export VM_CPUS := vm_cpus
 export VM_MEM := vm_mem
 export VM_DISK := vm_disk
 
+# auto uses KVM if /dev/kvm is usable, else TCG; kvm or tcg force one, e.g. to compare
+vm_accel := "auto"
+export VM_ACCEL := vm_accel
+
 debian_image := cache / debian_image_file
 k3s_bin := cache / "k3s-" + k3s_version
 k3s_images := cache / replace(k3s_images_file, ".tar.zst", "-" + k3s_version + ".tar.zst")
@@ -25,7 +29,7 @@ k3s_install := cache / "k3s-install-" + k3s_install_rev + ".sh"
 default:
     @just --list
 
-# devcontainer setup: ID mapping, kubectl, containers config; safe to rerun
+# devcontainer setup: ID mapping, kubectl, containers config, KVM group; safe to rerun
 setup:
     env/setup.sh {{ quote(local) }} {{ quote(cache / "kubectl-" + kubectl_version) }} \
         {{ quote(kubectl_url) }} {{ quote(kubectl_sha256) }}

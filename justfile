@@ -5,6 +5,10 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 local := justfile_directory() / ".local"
 cache := local / "cache"
 
+# for kubectl and docker in recipes; a caller's value wins, devcontainer.json sets the same
+export KUBECONFIG := env("KUBECONFIG", local / "vm/cluster/kubeconfig")
+export DOCKER_HOST := env("DOCKER_HOST", "tcp://127.0.0.1:2375")
+
 # the VM the vm-* recipes act on: cluster or build, e.g. just vm=build vm-up
 vm := "cluster"
 
@@ -91,6 +95,10 @@ vm-reset:
 # copy the cluster's admin kubeconfig to .local/vm/cluster/kubeconfig
 kubeconfig:
     env/vm.sh cluster kubeconfig {{ quote(local) }}
+
+# lint the shell scripts; git's file list skips what .gitignore excludes, like .local/
+lint:
+    git ls-files -z --cached --others --exclude-standard '*.sh' | xargs -0 shellcheck -x
 
 # check that vm-ssh passes arguments unchanged
 test-vm-ssh: vm-up

@@ -418,11 +418,20 @@ changing it.
        `setup`'s group fix, with the open forced to fail: an unmapped group only gets a note, a
        free group ID gets `host-kvm` and the membership, and a rerun only the note.
        Untested, as there's no Docker daemon here: rootful Docker end to end.
-8. [ ] `KUBECONFIG` and `DOCKER_HOST`: the `justfile` exports both, so recipes work in any
+8. [x] `KUBECONFIG` and `DOCKER_HOST`: the `justfile` exports both, so recipes work in any
        context, e.g. CI, not only the devcontainer. Use `env()` defaults, so a caller's value
        wins: `env("KUBECONFIG", justfile_directory() / ".local/vm/cluster/kubeconfig")`.
        `remoteEnv` in devcontainer.json sets the same values, so a plain `kubectl` and
        `docker` work in VS Code terminals too.
+
+       Done: a `remoteEnv` change applies after a window reload, but only to terminals opened
+       after it; terminals restored by the reload keep their old environment. Podman ignores
+       `DOCKER_HOST`, so the export doesn't affect the default builder.
+       Verified: both defaults, a caller's values winning in recipes, and `kubectl get nodes`
+       through `just --command` without `KUBECONFIG` set.
+       Also added: a `lint` recipe running `shellcheck -x` on the scripts git knows of, tracked
+       or untracked but not ignored; step 15 extends it. `just --fmt` was left out: it's
+       still unstable and its style clashes with the 100 char limit.
 9. [ ] Smoke test with a public image (`traefik/whoami`) to verify the cluster without the
        registry.
 10. [ ] `hello`: build a tiny image with `podman build`, push it to `localhost:5000`, deploy
@@ -475,8 +484,8 @@ changing it.
           look instead
         - `NOTICE` goes too, as it's an Apache convention that neither license needs; drop
           [notes.md](../notes.md), as the headers replace its snippet
-        - a `lint` recipe runs `reuse lint`, the header check and `shellcheck`; `.local/` is
-          ignored through `.gitignore`
+        - the `lint` recipe, which runs `shellcheck` since step 8, adds `reuse lint` and the
+          header check; `.local/` is ignored through `.gitignore`
 
 ## Done when
 

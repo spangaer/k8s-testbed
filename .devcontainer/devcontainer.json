@@ -16,6 +16,11 @@
     // --device, unlike a bind mount, also gets the device past rootful Docker's device cgroup.
     "initializeCommand": ["sh", "${localWorkspaceFolder}/.devcontainer/kvm-link.sh"],
     "runArgs": ["--device=${localWorkspaceFolder}/.local/host/kvm:/dev/kvm"],
+    // same defaults as the justfile, so a plain kubectl and docker work in terminals too
+    "remoteEnv": {
+        "KUBECONFIG": "${containerWorkspaceFolder}/.local/vm/cluster/kubeconfig",
+        "DOCKER_HOST": "tcp://127.0.0.1:2375"
+    },
     "customizations": {
         "vscode": {
             "extensions": [

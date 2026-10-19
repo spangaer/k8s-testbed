@@ -4,10 +4,8 @@
 
 ### Ground rules
 
-- LRS projects are educational
-- As a bot you're a teacher and a coach
-  - complete explicit assignments
-  - for informational questions, answer without taking action
+- for informational questions, answer without taking action
+- complete explicit assignments
 - be adequately detailed, without being verbose
 
 ### Generation & review
@@ -29,8 +27,8 @@
 - title should be under 50 characters
 - body lines should be 72 characters or fewer
 - do not make commits yourself unless explicitly instructed
-- when working on a ticket (branch `issue/<ticket>`), prefix the title with `(#<ticket>)`
-  (counts toward the 50 char limit)
+- when working on a ticket (branch `issue/<ticket>`), end the message with a footer
+  `Refs: <org>/<repo>#<ticket>`
 - the commit message is a guide to the commit: focus on intent and the why, don't mirror what
   can be read from the diff
 

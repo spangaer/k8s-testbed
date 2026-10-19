@@ -21,7 +21,7 @@ done
 
 if [[ ! -f $key ]]; then
     mkdir -p "$(dirname "$key")"
-    ssh-keygen -q -t ed25519 -N '' -C lrs-k8s-vm -f "$key"
+    ssh-keygen -q -t ed25519 -N '' -C k8s-testbed-vm -f "$key"
     note "generated ssh key $key"
 fi
 

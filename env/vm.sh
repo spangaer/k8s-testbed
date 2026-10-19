@@ -279,7 +279,7 @@ start_qemu() {
     rm -f "$pid_file" "$qmp"
     note "starting the $vm VM, $cpus vCPUs, $mem RAM, ${accel^^}"
     # -daemonize returns once QEMU is set up, so errors like a taken port show here
-    "$exe" -name "lrs-k8s-$vm" -accel "$opts" -cpu max -smp "$cpus" -m "$mem" \
+    "$exe" -name "k8s-testbed-$vm" -accel "$opts" -cpu max -smp "$cpus" -m "$mem" \
         -drive "file=$disk,if=virtio,format=qcow2" \
         -drive "file=$dir/seed.iso,if=virtio,format=raw,readonly=on" \
         -netdev "user,id=n0,$fwd" -device virtio-net-pci,netdev=n0 \

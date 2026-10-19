@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/devcontainers/rust:2-1-trixie
+FROM mcr.microsoft.com/devcontainers/base:2.2-trixie
 
 # keep systemd and friends out, they misbehave in containers
 # priority -1 makes apt skip them as recommends and fail loudly on hard dependencies
@@ -12,7 +12,7 @@ RUN printf '%s\n' \
 # just: simpler more portable make
 # tk: Tcl/Tk runtime (wish) for the bundled git gui and gitk
 # shellcheck: lint for shell scripts
-RUN apt-get update && apt-get install -y cmake time ripgrep just tk shellcheck
+RUN apt-get update && apt-get install -y time ripgrep just tk shellcheck
 
 # k8s test env tooling
 # qemu-*, cloud-image-utils: cluster and build VMs under TCG, seed.iso via genisoimage

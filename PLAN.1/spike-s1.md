@@ -62,7 +62,7 @@ Sizes: image 341 MB, airgap images 194 MB, k3s 79 MB, kubectl 60 MB.
 
 ```sh
 mkdir -p .local/vm/seed && cd .local/vm
-[ -f id_ed25519 ] || ssh-keygen -q -t ed25519 -N '' -C lrs-k8s-vm -f id_ed25519
+[ -f id_ed25519 ] || ssh-keygen -q -t ed25519 -N '' -C k8s-testbed-vm -f id_ed25519
 # the backing file must be an absolute path
 qemu-img create -q -f qcow2 -F qcow2 \
   -b "$(realpath ../cache/debian-13-genericcloud-amd64-20261001-2618.qcow2)" disk.qcow2 30G
@@ -92,7 +92,7 @@ The resulting `seed.iso` is 274 MB. The root fs grows to the full 30 GB without 
 ## S1: boot
 
 ```sh
-qemu-system-x86_64 -name lrs-k8s -accel tcg,thread=multi -cpu max -smp 6 -m 8G \
+qemu-system-x86_64 -name k8s-testbed -accel tcg,thread=multi -cpu max -smp 6 -m 8G \
   -drive file=disk.qcow2,if=virtio,format=qcow2 \
   -drive file=seed.iso,if=virtio,format=raw,readonly=on \
   -netdev user,id=n0,hostfwd=tcp:127.0.0.1:2222-:22,hostfwd=tcp:127.0.0.1:6443-:6443,\
@@ -171,4 +171,4 @@ rm -f qemu.pid
 
 Gotcha: the agent's shell tool rejects `kill -0 $P`, so the spike used `/proc/$P`. Recipes
 should validate identity, e.g. `/proc/$P/cmdline` contains `qemu-system-x86_64` and
-`-name lrs-k8s`, before trusting the PID file.
+`-name k8s-testbed`, before trusting the PID file.

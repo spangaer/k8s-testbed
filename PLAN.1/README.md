@@ -186,7 +186,7 @@ The `vm-*` recipes act on the cluster VM by default, and on the build VM with `j
 | `test-whoami` | deploy and curl the public whoami image, then remove it; halves: `_whoami-up/-down` |
 | `up` / `down` | registry and cluster VM together; `down` also stops a running build VM |
 | `hello` | build, push, deploy, then curl the hello-world image |
-| `lint` | `reuse lint`, the license-per-folder check and `shellcheck` |
+| `lint` | `reuse lint` and `shellcheck` |
 
 ## Steps
 
@@ -492,33 +492,25 @@ changing it.
 14. [ ] Docs: fill in [project.md](../.agents/project.md) with the layout and recipes, and add
         the skill to the [agent index](../.agents/README.md). In the root README, add the end
         goal (see [Goal](#goal)) and a short usage section that links to `docs/udd/testsetup/`.
-15. [ ] Licensing: relicense the test setup to 0BSD and make the project
-        [REUSE](https://reuse.software/) compliant, with room for MPL-2.0 sections. Add `reuse`
-        to the Dockerfile's tooling line (and install it by hand, see [Steps](#steps)).
-        - the license is chosen per folder, with no project-wide default: the test setup is
-          0BSD, other folders may be MPL-2.0; single-file exceptions are avoided. The root
-          counts as a folder of its own, for its files only; they belong to the test setup,
-          so 0BSD.
-        - every file that takes comments carries an SPDX header with its folder's license and
+15. [ ] Licensing: relicense the whole project from MPL-2.0 to MIT-0 and make it
+        [REUSE](https://reuse.software/) compliant. Add `reuse` to the Dockerfile's tooling
+        line (and install it by hand, see [Steps](#steps)).
+        - MIT-0 is the only license: text may mention MIT, MIT-0 or MPL-2.0, e.g. to explain
+          the choice, but only the MIT-0 license text is included, to avoid confusion
+        - every file that takes comments carries an SPDX header,
+          `SPDX-License-Identifier: MIT-0` and
           `SPDX-FileCopyrightText: <year> Jean-Luc Deprez <https://github.com/spangaer>`, so a
-          copied file keeps its terms; `reuse annotate --recursive` does a folder at once,
+          copied file keeps its terms; `reuse annotate --recursive` does the tree at once,
           keeping shebangs first
-        - `REUSE.toml` maps each folder explicitly, e.g. `env/**`, and the root files with
-          `path = "*"`, which doesn't cross `/` (verify it matches dotfiles too). There's no `**`
-          catch-all, so `reuse lint` fails on an unmapped folder until a license is chosen. It
-          covers the files without comments, like JSON, and is the one place that lists which
-          folder has which license.
-        - `reuse lint` passes a header that differs from its folder's license, so `lint` also
-          checks that each header matches its folder in `REUSE.toml`, e.g. with
-          `precedence = "aggregate"` and a check for files with more than one license in
-          `reuse spdx`; verify how `reuse` merges them first
-        - `reuse download --all` fills `LICENSES/` with the licenses in use; the root `LICENSE`
-          goes, as no single license covers the project, and the root README says where to
-          look instead
-        - `NOTICE` goes too, as it's an Apache convention that neither license needs; drop
+        - `REUSE.toml` covers the files without comments, like JSON, with a single `**`
+          annotation for MIT-0 (verify it matches dotfiles too)
+        - `reuse download MIT-0` puts the text in `LICENSES/`; the root `LICENSE` is replaced
+          with the MIT-0 text, so GitHub still detects it. As `LICENSES/` holds MIT-0 only,
+          `reuse lint` fails on any header with another license, so no extra check is needed.
+        - `NOTICE` goes, as it's an Apache convention that MIT-0 doesn't need; drop
           [notes.md](../notes.md), as the headers replace its snippet
-        - the `lint` recipe, which runs `shellcheck` since step 8, adds `reuse lint` and the
-          header check; `.local/` is ignored through `.gitignore`
+        - the `lint` recipe, which runs `shellcheck` since step 8, adds `reuse lint`;
+          `.local/` is ignored through `.gitignore`
 
 ## Done when
 

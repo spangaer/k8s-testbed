@@ -171,7 +171,7 @@ ExecStart=/usr/sbin/dockerd -H fd:// -H tcp://0.0.0.0:2375 \
 ### Boot
 
 ```sh
-qemu-system-x86_64 -name lrs-k8s-build -accel tcg,thread=multi -cpu max -smp 4 -m 3G \
+qemu-system-x86_64 -name k8s-testbed-build -accel tcg,thread=multi -cpu max -smp 4 -m 3G \
   -drive file=disk.qcow2,if=virtio,format=qcow2 \
   -drive file=seed.iso,if=virtio,format=raw,readonly=on \
   -netdev user,id=n0,hostfwd=tcp:127.0.0.1:2223-:22,hostfwd=tcp:127.0.0.1:2375-:2375 \
@@ -181,18 +181,19 @@ qemu-system-x86_64 -name lrs-k8s-build -accel tcg,thread=multi -cpu max -smp 4 -
 
 ### Transport: devcontainer client to the guest daemon
 
-ssh goes through a `Host` entry, so plain `ssh lrs-build` and `DOCKER_HOST=ssh://lrs-build`
-both work. It lives in `.local/vm/ssh_config`; `~/.ssh/config` only gets an
-`Include /workspaces/lrs-k8s-one/.local/vm/ssh_config` line, which `setup` can add idempotently.
+ssh goes through a `Host` entry, so plain `ssh k8s-testbed-build` and
+`DOCKER_HOST=ssh://k8s-testbed-build` both work. It lives in `.local/vm/ssh_config`;
+`~/.ssh/config` only gets an `Include /workspaces/k8s-testbed/.local/vm/ssh_config` line, which
+`setup` can add idempotently.
 
 ```
-Host lrs-build
+Host k8s-testbed-build
   HostName 127.0.0.1
   Port 2223
   User debian
-  IdentityFile /workspaces/lrs-k8s-one/.local/vm/id_ed25519
+  IdentityFile /workspaces/k8s-testbed/.local/vm/id_ed25519
   IdentitiesOnly yes
-  UserKnownHostsFile /workspaces/lrs-k8s-one/.local/vm/build/known_hosts
+  UserKnownHostsFile /workspaces/k8s-testbed/.local/vm/build/known_hosts
   StrictHostKeyChecking accept-new
   BatchMode yes
   ConnectTimeout 5
@@ -203,7 +204,7 @@ Each variant ran a cached rebuild, a rebuild after a context change and a push. 
 
 | `DOCKER_HOST` | cached | context change | notes |
 |---|---|---|---|
-| `ssh://lrs-build` | 12-13 s | 14 s | `http2: ... error reading preface` noise on every build |
+| `ssh://k8s-testbed-build` | 12-13 s | 14 s | `http2: ... error reading preface` noise on every build |
 | same, with `ControlMaster auto` and `ControlPersist 10m` | 4-5 s | 5 s | same noise |
 | `unix://` via `ssh -f -N -L <sock>:/var/run/docker.sock` | 3-4 s | 2 s | extra process |
 | `tcp://127.0.0.1:2375` via QEMU `hostfwd` | 3-4 s | 2 s | no extra process |
@@ -339,7 +340,7 @@ User config, which `setup` would write:
 # ~/.config/containers/storage.conf
 [storage]
 driver = "overlay"
-graphroot = "/workspaces/lrs-k8s-one/.local/podman/storage"
+graphroot = "/workspaces/k8s-testbed/.local/podman/storage"
 runroot = "/tmp/containers-1000"   # XDG_RUNTIME_DIR is unset
 
 # ~/.config/containers/containers.conf

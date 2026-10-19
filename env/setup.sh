@@ -99,6 +99,11 @@ put "$conf/containers.conf" 0644 <<'EOF'
 # a private network needs /dev/net/tun, which the devcontainer lacks; ports bind straight on
 # its loopback
 netns = "host"
+# The engine's default seccomp profile denies sethostname without sys_admin, even in a fresh
+# UTS namespace, which fails every RUN step and podman run. Containers get the devcontainer's
+# hostname instead. Debugger features, like rust's, set seccomp=unconfined, which hides this,
+# so keep the setup working without them.
+utsns = "host"
 # A fresh /proc mount is denied, as Podman masked parts of the devcontainer's /proc. A
 # recursive bind keeps those masks, so it's allowed, and containers keep a private PID
 # namespace. Inside, /proc shows the devcontainer's processes, not the container's.

@@ -92,7 +92,14 @@ devcontainer                                   cluster VM (KVM or TCG), Debian 1
   - `containers.conf` sets `netns = "host"` and binds `/proc:/proc:rbind`. crun can't mount a
     fresh `/proc` here, so without the bind every `RUN` step and every `podman run` fails.
     With it, both get Podman's default private PID namespace, rather than needing
-    `--pid=host`.
+    `--pid=host`. It also sets `utsns = "host"`: the engine's default seccomp profile denies
+    `sethostname` without `sys_admin`, even in a fresh UTS namespace, which also fails every
+    `RUN` step and `podman run`.
+  - seccomp: the setup must work under the outer engine's default seccomp profile. Until the
+    base image moved from `devcontainers/rust` to `devcontainers/base`, the rust feature's
+    image metadata added `seccomp=unconfined` (and `SYS_PTRACE`, for debuggers), so S2 and
+    step 2 ran without a filter, and the `sethostname` denial only surfaced in step 10. If a
+    debugger feature returns, it brings `unconfined` back; check changes without it too.
   - builds: plain `podman build`, with the default `oci` isolation and layer caching. Each
     `RUN` step gets its own PID namespace, so daemons it starts are killed when it ends.
     `--isolation chroot` works too, but shares the devcontainer's PID namespace and leaves
@@ -135,6 +142,7 @@ devcontainer                                   cluster VM (KVM or TCG), Debian 1
   - `.local/host/`: written on the host by `kvm-link.sh`: `kvm`, a link to `/dev/kvm` or to
     `/dev/null`
   - `.local/krew/`: `KREW_ROOT`, krew and its plugins, installed by `setup`
+  - `.local/hello/`: the kustomize overlay of the last `test-hello-up`, with its image tag
   - `.local/podman/`: Podman image/build storage, configured by `setup`. It holds files owned
     by mapped IDs, so plain `rm` and `du` fail. Clean up with `podman rmi`,
     `podman system prune` or, to wipe it all, `podman system reset`; for raw file access, use
@@ -163,6 +171,8 @@ env/vm/build/user-data.yaml    cloud-init template: ssh key, Docker install, TCP
 env/registry/config.yml        registry config
 test/hello/Dockerfile          tiny http hello-world image
 test/hello/hello.yaml          Deployment + Service + Ingress
+test/hello/kustomization.yaml  kustomize base; hello.sh sets the image tag in an overlay
+test/hello.sh                  build, push, roll out and curl hello under a fresh tag
 test/vm-ssh.sh                 regression test for vm-ssh argument handling
 test/whoami.sh                 smoke test: deploy the public whoami image, curl the ingress
 test/whoami/whoami.yaml        Deployment + Service + Ingress for whoami
@@ -171,7 +181,8 @@ test/whoami/whoami.yaml        Deployment + Service + Ingress for whoami
 ### Recipes (`just`)
 
 The `vm-*` recipes act on the cluster VM by default, and on the build VM with `just vm=build ...`.
-`hello` builds with Podman by default, and through the build VM with `just builder=docker ...`.
+`test-hello-up` builds with Podman by default, and through the build VM with
+`just builder=docker ...`.
 
 | Recipe | Does |
 |---|---|
@@ -185,7 +196,7 @@ The `vm-*` recipes act on the cluster VM by default, and on the build VM with `j
 | `test-vm-ssh` | bring the VM up if needed, check that `vm-ssh` passes arguments unchanged |
 | `test-whoami` | deploy and curl the public whoami image, then remove it; halves: `_whoami-up/-down` |
 | `up` / `down` | registry and cluster VM together; `down` also stops a running build VM |
-| `hello` | build, push, deploy, then curl the hello-world image |
+| `test-hello-up` / `-down` | build, push, deploy and curl hello under a fresh tag / remove it |
 | `lint` | `reuse lint` and `shellcheck` |
 
 ## Steps
@@ -467,20 +478,34 @@ changing it.
        `HTTP 404` progress lines.
        Gotcha: without `KUBECONFIG`, `kubectl` falls back to `localhost:8080`, which is
        traefik's forward, so errors read as a missing resource rather than a missing config.
-10. [ ] `hello`: build a tiny image with `podman build`, push it to `localhost:5000`, deploy
+10. [x] `hello`: build a tiny image with `podman build`, push it to `localhost:5000`, deploy
         it, then reach it through the ingress with `curl http://hello.localhost:8080/`. Use a
         fresh image tag for each invocation, update the Deployment image, and wait for
         rollout before checking the expected response. Verify a changed image is served on a
         repeated run.
+
+        Done: `test-hello-up` starts the registry and cluster VM if needed, then
+        `test/hello.sh up` builds busybox `httpd` under a UTC timestamp tag; the page echoes
+        the tag, so the check knows which build answers. `test/hello` is a kustomize base
+        without a tag; the script applies an overlay in `.local/hello/` that sets it, by image
+        name. It waits for the rollout, the old pods to go, then 5 good answers in
+        a row. The local image tag is dropped after the push; the registry keeps all tags.
+        `test-hello-down` removes the deployment; `builder=docker` waits for step 11.
+        Gotchas: as PID 1, `httpd` ignores `SIGTERM`, so replaced pods served for the 30 s
+        grace period; a shell wrapper fixes that. Traefik briefly routes to gone pods (504).
+        `sethostname` failed once the rust image's `seccomp=unconfined` was gone, hence
+        `utsns = "host"`, see [Design](#design).
+        Verified: a first run with base image pull, 3 reruns at 5 to 15 s, each with 40 curls
+        all on the new tag; `test-hello-down` twice; `podman run` of the image as `nobody`.
 11. [ ] Build VM: `env/vm/build/user-data.yaml` with the Docker install, `daemon.json` and the
         TCP drop-in, see [Design](#design), and the build VM's settings for the step 6 recipes:
         ssh on `2223`, `hostfwd` for `2375`, and `vm-up` waits until `docker version` reaches
-        the daemon. `hello` with `builder=docker` brings the build VM up if needed, then builds
-        with `docker build` and pushes as `10.0.2.2:5000/hello:<tag>`.
+        the daemon. `test-hello-up` with `builder=docker` brings the build VM up if needed,
+        then builds with `docker build` and pushes as `10.0.2.2:5000/hello:<tag>`.
 12. [ ] Agent skill to bump pinned versions in `versions.just` (cloud image, k3s artifacts,
         `install.sh` revision, kubectl, krew, krew-index revision). Take checksums from the
         upstream checksum files, keep k3s and kubectl on the same minor, and validate with
-        `just vm-reset`, `just up`, `just hello` and `just builder=docker hello`.
+        `just vm-reset`, `just up`, `just test-hello-up` and `just builder=docker test-hello-up`.
 13. [ ] Transfer the spike learnings, so the spike logs are no longer needed. The why goes
         next to the what: inline comments in scripts, recipes, config and cloud-init
         templates are the first choice. The overview goes to `docs/udd/testsetup/`: how the

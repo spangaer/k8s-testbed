@@ -14,6 +14,10 @@ export KREW_ROOT := env("KREW_ROOT", local / "krew")
 # the VM the vm-* recipes act on: cluster or build, e.g. just vm=build vm-up
 vm := "cluster"
 
+# image builder for test-hello-up: podman, or docker in the build VM, e.g.
+# just builder=docker test-hello-up
+builder := "podman"
+
 # VM sizing, e.g. just vm_mem=8G vm-up; empty for the VM's default, see env/vm.sh
 vm_cpus := ""
 vm_mem := ""
@@ -119,3 +123,12 @@ _whoami-up:
 # remove the whoami deployment, if any
 _whoami-down:
     test/whoami.sh down
+
+# build and push hello under a fresh tag, roll it out and check the ingress serves that build
+test-hello-up: registry-up
+    just vm=cluster vm-up
+    test/hello.sh up {{ quote(builder) }}
+
+# remove the hello deployment, if any; test-hello-up leaves it running for a look
+test-hello-down:
+    test/hello.sh down

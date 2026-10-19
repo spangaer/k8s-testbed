@@ -1,0 +1,3 @@
+# base for test/hello.sh, which applies it through an overlay in .local/hello that sets the tag
+resources:
+  - hello.yaml

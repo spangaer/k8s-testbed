@@ -27,3 +27,14 @@ k3s_install_sha256 := "46177d4c99440b4c0311b67233823a8e8a2fc09693f6c89af1a7161e1
 kubectl_version := "v1.36.5"
 kubectl_url := "https://dl.k8s.io/release/" + kubectl_version + "/bin/linux/amd64/kubectl"
 kubectl_sha256 := "33bc88a24c3b09cf55bfd59e6ca977881b61fc3f25ab65bc80c65b430248648e"
+
+# krew, the kubectl plugin manager, see https://github.com/kubernetes-sigs/krew/releases
+krew_version := "v0.5.0"
+krew_url := "https://github.com/kubernetes-sigs/krew/releases/download/" + krew_version
+krew_sha256 := "5d5a221fffdf331d1c5c68d9917530ecd102e0def5b5a6d62eeed1c404efb28a"
+krew_manifest_sha256 := "6844d0864e592aa50053c8647708868affadfb9a9b03129992cd985d7d37a374"
+
+# krew plugins, as their manifests at a krew-index commit, which also pin their archives,
+# see https://github.com/kubernetes-sigs/krew-index/commits/master
+krew_index_rev := "a7c10188a85f2681ab1a29e12ad0619dfa402edc"
+krew_plugins := "tree neat tail topology"

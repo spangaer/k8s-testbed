@@ -121,7 +121,8 @@ devcontainer                                   cluster VM (KVM or TCG), Debian 1
   the workspace bind mount, so it survives a devcontainer rebuild. User-level containers config
   is recreated by `setup`, and temporary process state is recreated on startup:
   - `.local/cache/`: downloads, fetched once and checksum-verified: the Debian cloud image, and
-    the k3s binary, `install.sh`, airgap images tarball and kubectl binary. File names
+    the k3s binary, `install.sh`, airgap images tarball, kubectl binary, krew release and
+    krew plugin manifests. File names
     carry the pinned version or revision from `versions.just`, so a version bump fetches anew.
     Pin `install.sh` to an immutable revision as well. Never delete a cached cloud image while
     an overlay still uses it as its backing image.
@@ -133,6 +134,7 @@ devcontainer                                   cluster VM (KVM or TCG), Debian 1
   - `.local/registry/`: registry storage in `storage/`, plus its pid file and log
   - `.local/host/`: written on the host by `kvm-link.sh`: `kvm`, a link to `/dev/kvm` or to
     `/dev/null`
+  - `.local/krew/`: `KREW_ROOT`, krew and its plugins, installed by `setup`
   - `.local/podman/`: Podman image/build storage, configured by `setup`. It holds files owned
     by mapped IDs, so plain `rm` and `du` fail. Clean up with `podman rmi`,
     `podman system prune` or, to wipe it all, `podman system reset`; for raw file access, use
@@ -150,6 +152,7 @@ justfile                       recipes, see below
 .devcontainer/kvm-link.sh      on the host: link /dev/kvm for the devcontainer if usable
 versions.just                  pinned versions and checksums, imported by the justfile
 env/setup.sh                   devcontainer setup, run by `just setup`
+env/krew.sh                    krew and its plugins, run by `just setup`
 env/fetch.sh                   fetch a pinned download into the cache, verify its checksum
 env/lib.sh                     shared helpers: messages, pid file checks, waits with progress
 env/registry.sh                start or stop the registry, run by `just registry-up` / `-down`
@@ -161,6 +164,8 @@ env/registry/config.yml        registry config
 test/hello/Dockerfile          tiny http hello-world image
 test/hello/hello.yaml          Deployment + Service + Ingress
 test/vm-ssh.sh                 regression test for vm-ssh argument handling
+test/whoami.sh                 smoke test: deploy the public whoami image, curl the ingress
+test/whoami/whoami.yaml        Deployment + Service + Ingress for whoami
 ```
 
 ### Recipes (`just`)
@@ -170,7 +175,7 @@ The `vm-*` recipes act on the cluster VM by default, and on the build VM with `j
 
 | Recipe | Does |
 |---|---|
-| `setup` | devcontainer setup: ID mapping, kubectl, containers config, KVM group; run on create |
+| `setup` | devcontainer setup: ID mapping, kubectl, krew, Podman config, KVM group; on create |
 | `registry-up` / `registry-down` | start or stop the registry process |
 | `vm-image` | fill the cache if needed, create the qcow2 overlay and seed |
 | `vm-up` / `vm-down` | boot the VM (daemonized) and wait for k3s or Docker / shut down cleanly |
@@ -178,6 +183,7 @@ The `vm-*` recipes act on the cluster VM by default, and on the build VM with `j
 | `vm-reset` | drop the overlay to get a fresh VM (the cache stays) |
 | `kubeconfig` | copy `k3s.yaml` out of the guest into `.local/vm/cluster/kubeconfig` |
 | `test-vm-ssh` | bring the VM up if needed, check that `vm-ssh` passes arguments unchanged |
+| `test-whoami` | deploy and curl the public whoami image, then remove it; halves: `_whoami-up/-down` |
 | `up` / `down` | registry and cluster VM together; `down` also stops a running build VM |
 | `hello` | build, push, deploy, then curl the hello-world image |
 | `lint` | `reuse lint`, the license-per-folder check and `shellcheck` |
@@ -287,6 +293,19 @@ changing it.
        and a rerun repairs it; without `sudo` it fails with an actionable error; `podman build`
        (5 s) and `podman run` keep `1234:1234` ownership. `shellcheck` was added to the
        Dockerfile to lint the scripts.
+
+       Detour: `setup` also runs `env/krew.sh`, which installs krew with the plugins `tree`,
+       `neat`, `tail` and `topology`, without `sudo`. `KREW_ROOT` is `.local/krew`, so they
+       survive a rebuild; `devcontainer.json` sets it, and appends its `bin` to `PATH`. krew is
+       installed offline from its cached release archive and `krew.yaml`. Plugins install by
+       their manifests at a pinned krew-index commit, which pin their archives' checksums, so
+       they're "detached": a pin bump updates them, `kubectl krew upgrade` doesn't. Only what
+       differs from a pin is (re)installed, by the `version` in krew's receipts, so reruns are
+       offline no-ops. Gotchas: krew skips an installed plugin whatever its version, so a
+       change needs an uninstall first, and won't remove itself, so its receipt and store are
+       dropped by hand; installs by manifest skip the index, which `uninstall` and `search`
+       need, so `krew update` adds it once. Verified: a fresh install, a rerun, an old krew and
+       plugin version, a missing plugin and an unknown plugin, which fails on the 404.
 3. [x] `.gitignore`: add `.local/` (done early, during S1).
 4. [x] Registry config plus `registry-up` / `registry-down`.
 
@@ -432,8 +451,22 @@ changing it.
        Also added: a `lint` recipe running `shellcheck -x` on the scripts git knows of, tracked
        or untracked but not ignored; step 15 extends it. `just --fmt` was left out: it's
        still unstable and its style clashes with the 100 char limit.
-9. [ ] Smoke test with a public image (`traefik/whoami`) to verify the cluster without the
+9. [x] Smoke test with a public image (`traefik/whoami`) to verify the cluster without the
        registry.
+
+       Done: `test-whoami` runs the hidden `_whoami-up` and `_whoami-down`, which are also
+       there to run by hand, to inspect a running deployment. `_whoami-up` brings the cluster
+       VM up if needed, then `test/whoami.sh up` applies `test/whoami/whoami.yaml`, waits for
+       the rollout, and polls `http://whoami.localhost:8080/` until a whoami pod answers,
+       checked by the `Hostname` in the response. `_whoami-down` deletes it, and is a no-op
+       when there's nothing. A failed `_whoami-up` stops `test-whoami` before the cleanup, so
+       the deployment stays for a look. `_whoami-up` passes `vm=cluster` itself, so a
+       `vm=build` can't start the wrong VM. The image is pinned by tag, `v1.12.0`.
+       Verified: a first run with pull in 7 s (KVM, VM up), a repeat run, up and down by hand
+       with a second down, and a host the ingress doesn't know, which fails after 60 s with
+       `HTTP 404` progress lines.
+       Gotcha: without `KUBECONFIG`, `kubectl` falls back to `localhost:8080`, which is
+       traefik's forward, so errors read as a missing resource rather than a missing config.
 10. [ ] `hello`: build a tiny image with `podman build`, push it to `localhost:5000`, deploy
         it, then reach it through the ingress with `curl http://hello.localhost:8080/`. Use a
         fresh image tag for each invocation, update the Deployment image, and wait for
@@ -445,9 +478,9 @@ changing it.
         the daemon. `hello` with `builder=docker` brings the build VM up if needed, then builds
         with `docker build` and pushes as `10.0.2.2:5000/hello:<tag>`.
 12. [ ] Agent skill to bump pinned versions in `versions.just` (cloud image, k3s artifacts,
-        `install.sh` revision, kubectl). Take checksums from the upstream checksum
-        files, keep k3s and kubectl on the same minor, and validate with `just vm-reset`,
-        `just up`, `just hello` and `just builder=docker hello`.
+        `install.sh` revision, kubectl, krew, krew-index revision). Take checksums from the
+        upstream checksum files, keep k3s and kubectl on the same minor, and validate with
+        `just vm-reset`, `just up`, `just hello` and `just builder=docker hello`.
 13. [ ] Transfer the spike learnings, so the spike logs are no longer needed. The why goes
         next to the what: inline comments in scripts, recipes, config and cloud-init
         templates are the first choice. The overview goes to `docs/udd/testsetup/`: how the

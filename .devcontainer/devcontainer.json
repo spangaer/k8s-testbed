@@ -16,10 +16,13 @@
     // --device, unlike a bind mount, also gets the device past rootful Docker's device cgroup.
     "initializeCommand": ["sh", "${localWorkspaceFolder}/.devcontainer/kvm-link.sh"],
     "runArgs": ["--device=${localWorkspaceFolder}/.local/host/kvm:/dev/kvm"],
-    // same defaults as the justfile, so a plain kubectl and docker work in terminals too
+    // same defaults as the justfile, so a plain kubectl and docker work in terminals too;
+    // PATH adds krew's bin last, so its plugins can't shadow system tools
     "remoteEnv": {
         "KUBECONFIG": "${containerWorkspaceFolder}/.local/vm/cluster/kubeconfig",
-        "DOCKER_HOST": "tcp://127.0.0.1:2375"
+        "DOCKER_HOST": "tcp://127.0.0.1:2375",
+        "KREW_ROOT": "${containerWorkspaceFolder}/.local/krew",
+        "PATH": "${containerEnv:PATH}:${containerWorkspaceFolder}/.local/krew/bin"
     },
     "customizations": {
         "vscode": {

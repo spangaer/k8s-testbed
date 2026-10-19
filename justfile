@@ -8,6 +8,8 @@ cache := local / "cache"
 # for kubectl and docker in recipes; a caller's value wins, devcontainer.json sets the same
 export KUBECONFIG := env("KUBECONFIG", local / "vm/cluster/kubeconfig")
 export DOCKER_HOST := env("DOCKER_HOST", "tcp://127.0.0.1:2375")
+# for setup; in .local, so krew and its plugins survive a rebuild
+export KREW_ROOT := env("KREW_ROOT", local / "krew")
 
 # the VM the vm-* recipes act on: cluster or build, e.g. just vm=build vm-up
 vm := "cluster"
@@ -33,10 +35,12 @@ k3s_install := cache / "k3s-install-" + k3s_install_rev + ".sh"
 default:
     @just --list
 
-# devcontainer setup: ID mapping, kubectl, containers config, KVM group; safe to rerun
+# devcontainer setup: ID mapping, kubectl, containers config, KVM group, krew; safe to rerun
 setup:
     env/setup.sh {{ quote(local) }} {{ quote(cache / "kubectl-" + kubectl_version) }} \
         {{ quote(kubectl_url) }} {{ quote(kubectl_sha256) }}
+    env/krew.sh {{ quote(cache) }} {{ krew_version }} {{ quote(krew_url) }} {{ krew_sha256 }} \
+        {{ krew_manifest_sha256 }} {{ krew_index_rev }} {{ krew_plugins }}
 
 # start the local registry on 127.0.0.1:5000
 registry-up:
@@ -103,3 +107,15 @@ lint:
 # check that vm-ssh passes arguments unchanged
 test-vm-ssh: vm-up
     test/vm-ssh.sh {{ quote(vm) }}
+
+# deploy the public whoami image and reach it through the ingress; no registry needed
+test-whoami: _whoami-up _whoami-down
+
+# deploy whoami and check it's served, then leave it running for a look
+_whoami-up:
+    just vm=cluster vm-up
+    test/whoami.sh up
+
+# remove the whoami deployment, if any
+_whoami-down:
+    test/whoami.sh down

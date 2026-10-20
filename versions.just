@@ -2,12 +2,12 @@
 # k3s and kubectl must stay on the same Kubernetes minor
 
 # Debian 13 genericcloud image, see https://cloud.debian.org/images/cloud/trixie/
-debian_image_rev := "20261001-2618"
+debian_image_rev := "20261017-2634"
 debian_image_file := "debian-13-genericcloud-amd64-" + debian_image_rev + ".qcow2"
 debian_image_url := "https://cloud.debian.org/images/cloud/trixie/" + debian_image_rev + "/" \
     + debian_image_file
-debian_image_sha512 := "f46f0671a6e5bdec5291ab8972bae2f10e5408c2f64a74078f11efc2f06a436a" \
-    + "9d0313ed50e0472542eeabf780e9f7c792ac0a314c6c20507fcd9fd81b468c3d"
+debian_image_sha512 := "ec584ccabfef7120b4c4f7482adf0e615894d9292cedec446b64194b951ebe5d" \
+    + "d97c336b5dcbae458333764b0edd516334506017f33c4f2020ef8d38b569ffe3"
 
 # k3s release, see https://github.com/k3s-io/k3s/releases
 k3s_version := "v1.36.5+k3s1"

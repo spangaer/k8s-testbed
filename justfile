@@ -136,3 +136,8 @@ test-hello-up: registry-up
 # remove the hello deployment, if any; test-hello-up leaves it running for a look
 test-hello-down:
     test/hello.sh down
+
+# run all tests, on both VMs and with both builders; then remove the hello deployment and stop
+# the VMs and registry it started, pass or fail
+test-all:
+    test/all.sh {{ quote(local) }}

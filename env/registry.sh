@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # start or stop the local registry; safe to repeat
-# usage: registry.sh up|down <local dir>
+# usage: registry.sh up|down|running <local dir>; running exits 0 if it runs, quietly
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
@@ -68,5 +68,6 @@ down() {
 
 case $action in
     up | down) "$action" ;;
-    *) die "unknown action '$action', use up or down" ;;
+    running) [[ $(pid) ]] ;;
+    *) die "unknown action '$action', use up, down or running" ;;
 esac

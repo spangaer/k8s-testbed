@@ -44,11 +44,10 @@ leaves the old files; the VMs refuse the new pins until they're reset.
    - Debian image or k3s: `just vm-reset`, then `just vm-up`; it fetches the new files, and
      the node is `Ready`
    - Debian image: `just vm=build vm-reset`, then `just vm=build vm-up`, until `docker: ready`
-   - always: `just test-whoami`, `just test-hello-up` and `just builder=docker test-hello-up`,
-     each serving its page
+   - always: `just test-all`, until `all passed`; it stops the VMs and registry it started
 
-   Then `kubectl get nodes -o wide` shows the k3s version and the guest's kernel and OS. End
-   with `just test-hello-down`, and stop the build VM again if it wasn't running before.
+   With the cluster VM up, `kubectl get nodes -o wide` shows the k3s version and the guest's
+   kernel and OS. End by stopping the build VM again if it wasn't running before the bump.
 5. Old cache files are only removed when asked. A cloud image must not be removed while a VM
    disk still uses it as backing file, check with
    `qemu-img info -U --backing-chain .local/vm/*/disk.qcow2 | grep '^backing file:'`.

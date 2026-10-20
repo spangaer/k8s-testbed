@@ -3,6 +3,7 @@
 # cleanly, ssh into it, reset it, and copy the cluster's kubeconfig out.
 # usage: vm.sh <vm> image <local dir> <base image> [<name in iso>=<file>...]
 #        vm.sh <vm> up|down|reset|kubeconfig <local dir>
+#        vm.sh <vm> running <local dir>, exits 0 if the VM runs, quietly
 #        vm.sh <vm> ssh <local dir> [<command> [<arg>...]]
 # Sizing comes from VM_CPUS, VM_MEM and VM_DISK; if empty, the VM's default applies.
 # VM_ACCEL is auto (KVM if usable, else TCG), kvm or tcg.
@@ -418,5 +419,6 @@ kubeconfig() {
 case $action in
     image | up | down | reset | kubeconfig) "$action" "$@" ;;
     ssh) ssh_into "$@" ;;
+    running) [[ $(pid) ]] ;;
     *) die "unknown action '$action'" ;;
 esac

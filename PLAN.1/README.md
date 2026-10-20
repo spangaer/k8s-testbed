@@ -116,8 +116,9 @@ devcontainer                                   cluster VM (KVM or TCG), Debian 1
   [spike-s2.md](./spike-s2.md), part 2. Separate from the cluster VM, so builds don't compete
   with k3s and `vm-reset` keeps the build cache. Started on demand, not by `up`.
   - the devcontainer's `docker` CLI talks to `DOCKER_HOST=tcp://127.0.0.1:2375`, a `hostfwd`
-    to the daemon. A systemd drop-in adds `-H tcp://0.0.0.0:2375` and keeps `$DOCKER_OPTS`;
-    `hosts` in `daemon.json` conflicts with the unit's `-H fd://`. The API is unauthenticated,
+    to the daemon. A `docker.socket` drop-in adds `ListenStream=0.0.0.0:2375`; dockerd takes
+    all sockets passed with the unit's `-H fd://`, so the package's units stay untouched.
+    `hosts` in `daemon.json` conflicts with `-H fd://`. The API is unauthenticated,
     which is acceptable as the forward is bound to loopback.
   - pushes run inside the VM, so images are tagged `10.0.2.2:5000/<name>`; `daemon.json`
     marks that registry as insecure. It's the same registry and repository as
@@ -497,11 +498,30 @@ changing it.
         `utsns = "host"`, see [Design](#design).
         Verified: a first run with base image pull, 3 reruns at 5 to 15 s, each with 40 curls
         all on the new tag; `test-hello-down` twice; `podman run` of the image as `nobody`.
-11. [ ] Build VM: `env/vm/build/user-data.yaml` with the Docker install, `daemon.json` and the
+11. [x] Build VM: `env/vm/build/user-data.yaml` with the Docker install, `daemon.json` and the
         TCP drop-in, see [Design](#design), and the build VM's settings for the step 6 recipes:
         ssh on `2223`, `hostfwd` for `2375`, and `vm-up` waits until `docker version` reaches
         the daemon. `test-hello-up` with `builder=docker` brings the build VM up if needed,
         then builds with `docker build` and pushes as `10.0.2.2:5000/hello:<tag>`.
+
+        Done: `vm.sh` has a `build` VM with the phases `boot`, `cloud-init` and `docker`; the
+        last runs `docker version` through the forward with an explicit `-H`, so a caller's
+        `DOCKER_HOST` can't point it elsewhere. `vm-image` passes it no seed files. The TCP
+        socket comes from a `docker.socket` drop-in, as `ListenStream=` is a list: replacing
+        `docker.service`'s `ExecStart` would go stale with a package change, and `DOCKER_OPTS`
+        in `Environment=` or an extra `EnvironmentFile=` would override or be overridden by
+        `/etc/default/docker`, never merged. `write_files` runs before the package install, so
+        the first `dockerd` start has both files, without a restart. Timeouts: TCG 10/5 min,
+        KVM 5/2 min.
+        Verified: first boot 1m17s (KVM) and 3m25s (TCG), warm start 28 s and 82 s, shutdown
+        3 s; no cloud-init errors, root fs 1.3 GB used of 20 GB. With the socket drop-in:
+        `ExecStart` is the package's, dockerd holds both sockets, no insecure API warning,
+        first boot 1m04s, warm start 15 s (KVM). `builder=docker
+        test-hello-up` 14 s with the VM up, 45 s from a stopped VM, 33 s under TCG; alternating
+        with Podman rolls over each time, and no images pile up in the VM. `test-vm-ssh`
+        passes with `vm=build`, a `vm_disk` mismatch asks for `vm-reset`, which keeps the
+        cluster VM, and `vm=foo` fails clearly.
+        Open: the `up` / `down` recipes from [Recipes](#recipes-just) aren't in any step yet.
 12. [ ] Agent skill to bump pinned versions in `versions.just` (cloud image, k3s artifacts,
         `install.sh` revision, kubectl, krew, krew-index revision). Take checksums from the
         upstream checksum files, keep k3s and kubectl on the same minor, and validate with

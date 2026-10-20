@@ -57,7 +57,19 @@ case $vm in
         # under KVM, a warm boot ~3 min and under 1 min; fewer vCPUs are slower
         timeouts_tcg=(900 360) timeouts_kvm=(300 120)
         ;;
-    *) die "unknown vm '$vm', expected cluster" ;;
+    build)
+        ssh_port=2223
+        # the Docker API, for the devcontainer's CLI
+        forwards=(2375:2375)
+        cpus=${VM_CPUS:-$(($(nproc) < 4 ? $(nproc) : 4))} mem=${VM_MEM:-3G}
+        disk_size=${VM_DISK:-20G}
+        phases=(boot cloud-init docker)
+        # with 4 vCPUs, the first boot with the Docker install from the network took ~3.5 min
+        # under TCG and ~1.5 min under KVM, a warm boot ~1.5 min and ~30 s; the mirror's speed
+        # adds to the first
+        timeouts_tcg=(600 300) timeouts_kvm=(300 120)
+        ;;
+    *) die "unknown vm '$vm', expected cluster or build" ;;
 esac
 
 # the recipe call for this VM, for messages
@@ -192,11 +204,20 @@ status_ingress() {
     if [[ $code == 000 ]]; then echo "no answer yet"; else echo "HTTP $code"; fi
 }
 
+# The daemon answers the devcontainer's CLI through the forward, which also proves the TCP
+# drop-in. Explicit -H, so a caller's DOCKER_HOST can't point the check elsewhere.
+docker_version() {
+    timeout 10 docker -H "tcp://127.0.0.1:${forwards[0]%%:*}" version \
+    --format '{{.Server.Version}}' 2>&1
+}
+ready_docker() { qemu_alive && docker_version > /dev/null; }
+status_docker() { docker_version | tail -n 1 | cut -c 1-80; }
 # where to look when a phase times out
 hint() {
     case $1 in
         boot) echo "see $serial" ;;
         cloud-init) echo "see $(recipe "vm-ssh cloud-init status --long")" ;;
+        docker) echo "see $(recipe "vm-ssh sudo journalctl -u docker")" ;;
         *) echo "see $(recipe "vm-ssh sudo journalctl -u k3s")" ;;
     esac
 }

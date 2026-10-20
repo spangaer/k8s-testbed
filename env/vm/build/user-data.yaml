@@ -1,0 +1,33 @@
+#cloud-config
+# no `users:` block, as it would replace the image's default `debian` user
+ssh_authorized_keys:
+  - ${SSH_PUBKEY}
+
+# docker.io only recommends docker-cli, which only recommends docker-buildx, so all are named
+apt:
+  conf: |
+    APT::Install-Recommends "false";
+package_update: true
+packages: [docker.io, docker-cli, docker-buildx]
+
+# written before the packages are installed, so dockerd starts with them the first time
+write_files:
+  # pushes run in the guest, where slirp routes 10.0.2.2 to the devcontainer's plain-HTTP
+  # registry
+  - path: /etc/docker/daemon.json
+    permissions: "0644"
+    content: |
+      {"insecure-registries": ["10.0.2.2:5000"]}
+  # The devcontainer's docker CLI comes in through QEMU's 2375 forward, bound to loopback
+  # there. Unauthenticated, so root in this VM for anyone in the devcontainer. dockerd takes
+  # all sockets docker.socket passes with its -H fd://, and ListenStream= adds to the list, so
+  # the package's units stay as they are. `hosts` in daemon.json would conflict with -H fd://.
+  - path: /etc/systemd/system/docker.socket.d/tcp.conf
+    permissions: "0644"
+    content: |
+      [Socket]
+      ListenStream=0.0.0.0:2375
+
+runcmd:
+  # for docker over vm-ssh
+  - [usermod, -aG, docker, debian]

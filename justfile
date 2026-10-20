@@ -74,8 +74,10 @@ vm-image:
                 {{ quote("install.sh=" + k3s_install) }}
             )
             ;;
+        # installs Docker from the Debian mirror, nothing to carry
+        build) files=() ;;
         *)
-            echo "vm-image: unknown vm '{{ vm }}', expected cluster" >&2
+            echo "vm-image: unknown vm '{{ vm }}', expected cluster or build" >&2
             exit 1
             ;;
     esac
@@ -124,9 +126,11 @@ _whoami-up:
 _whoami-down:
     test/whoami.sh down
 
-# build and push hello under a fresh tag, roll it out and check the ingress serves that build
+# build and push hello under a fresh tag, roll it out and check the ingress serves that build;
+# builder=docker builds in the build VM, which it starts if needed
 test-hello-up: registry-up
     just vm=cluster vm-up
+    if [[ {{ quote(builder) }} == docker ]]; then just vm=build vm-up; fi
     test/hello.sh up {{ quote(builder) }}
 
 # remove the hello deployment, if any; test-hello-up leaves it running for a look

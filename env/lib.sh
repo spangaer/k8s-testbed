@@ -66,3 +66,10 @@ kvm_device() { [[ -c /dev/kvm && $(stat -L -c %t:%T /dev/kvm) == a:e8 ]]; }
 
 # opens it read-write, as permissions alone miss a device cgroup that denies it
 kvm_opens() { { : 3<> /dev/kvm; } 2> /dev/null; }
+
+# the spec version of a krew manifest or receipt, empty if there's none
+version_of() {
+    if [[ -f $1 ]]; then
+        awk '/^  version:/ { gsub(/"/, "", $2); print $2; exit }' "$1"
+    fi
+}

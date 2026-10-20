@@ -177,6 +177,7 @@ test/hello.sh                  build, push, roll out and curl hello under a fres
 test/vm-ssh.sh                 regression test for vm-ssh argument handling
 test/whoami.sh                 smoke test: deploy the public whoami image, curl the ingress
 test/whoami/whoami.yaml        Deployment + Service + Ingress for whoami
+.agents/skills/bump-versions/  agent skill: bump the pins in versions.just, then validate
 ```
 
 ### Recipes (`just`)
@@ -522,10 +523,29 @@ changing it.
         passes with `vm=build`, a `vm_disk` mismatch asks for `vm-reset`, which keeps the
         cluster VM, and `vm=foo` fails clearly.
         Open: the `up` / `down` recipes from [Recipes](#recipes-just) aren't in any step yet.
-12. [ ] Agent skill to bump pinned versions in `versions.just` (cloud image, k3s artifacts,
+12. [x] Agent skill to bump pinned versions in `versions.just` (cloud image, k3s artifacts,
         `install.sh` revision, kubectl, krew, krew-index revision). Take checksums from the
         upstream checksum files, keep k3s and kubectl on the same minor, and validate with
         `just vm-reset`, `just up`, `just test-hello-up` and `just builder=docker test-hello-up`.
+
+        Done: `.agents/skills/bump-versions/`. `SKILL.md` has the rules, the procedure, with
+        what to run per changed pin, and the sources. `scripts/latest.sh [<k3s channel>]`
+        resolves the latest values and prints them next to `just --evaluate`'s, changing
+        nothing; editing `versions.just` is left to the agent, which keeps its layout. kubectl
+        takes k3s's Kubernetes version, so the minors can't drift. Only `install.sh` and
+        `krew.yaml` lack upstream checksums: the first is fetched by commit, the second must
+        list the archive checksum from the release's `.sha256` file. A k3s tag's commit is
+        its `^{}` if annotated; `update.k3s.io` channels answer `HEAD` with 405, so the
+        redirect is read with `GET`. `just up` doesn't exist yet, so the procedure uses
+        `vm-up`, plus `test-whoami`. `krew_index_rev` only moves when a plugin's version
+        does, as `krew.sh` reinstalls by version anyway; the plugin versions are listed,
+        old and new. `version_of` moved from `krew.sh` to `lib.sh` for that.
+        Verified: all 10 unchanged pins, including the 2 computed checksums, came out
+        identical; on `stable` it found a newer Debian image, and a krew-index `master` that
+        changes no plugin, so that pin stays; against an older krew-index commit, it moves and
+        lists `tree` and `neat` as changed; on `latest` it also finds k3s and kubectl v1.37.1;
+        an unknown channel fails clearly, ~5 s per run. `just setup` is still a no-op. Not run
+        end to end, on request: an actual bump with its VM resets.
 13. [ ] Transfer the spike learnings, so the spike logs are no longer needed. The why goes
         next to the what: inline comments in scripts, recipes, config and cloud-init
         templates are the first choice. The overview goes to `docs/udd/testsetup/`: how the
@@ -534,9 +554,10 @@ changing it.
         don't belong to a single file. Drop the redundant parts, like command transcripts
         and the step-by-step probing, but keep the explanations of why, and the key
         measurements behind sizing and timeouts.
-14. [ ] Docs: fill in [project.md](../.agents/project.md) with the layout and recipes, and add
-        the skill to the [agent index](../.agents/README.md). In the root README, add the end
-        goal (see [Goal](#goal)) and a short usage section that links to `docs/udd/testsetup/`.
+14. [ ] Docs: fill in [project.md](../.agents/project.md) with the layout and recipes; the skill
+        is in the [agent index](../.agents/README.md) since step 12. In the root README, add the
+        end goal (see [Goal](#goal)) and a short usage section that links to
+        `docs/udd/testsetup/`.
 15. [ ] Licensing: relicense the whole project from MPL-2.0 to MIT-0 and make it
         [REUSE](https://reuse.software/) compliant. Add `reuse` to the Dockerfile's tooling
         line (and install it by hand, see [Steps](#steps)).

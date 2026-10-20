@@ -15,13 +15,6 @@ cache=$1 version=$2 url=$3 archive_sha256=$4 manifest_sha256=$5 index_rev=$6
 shift 6
 root=${KREW_ROOT:?"KREW_ROOT must be set, the justfile and devcontainer.json do"}
 
-# the spec version of a krew manifest or receipt, empty if there's none
-version_of() {
-    if [[ -f $1 ]]; then
-        awk '/^  version:/ { gsub(/"/, "", $2); print $2; exit }' "$1"
-    fi
-}
-
 # Run krew, showing its output only on failure. Otherwise it's usage notes and a PATH warning,
 # which devcontainer.json handles. Its stdin is a terminal for a manual run, so close it, or
 # it warns about that too.

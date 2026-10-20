@@ -6,4 +6,4 @@
 
 ## Skills
 
-- [Tell a joke](./skills/tell-joke/SKILL.md)
+- [Bump pinned versions](./skills/bump-versions/SKILL.md)

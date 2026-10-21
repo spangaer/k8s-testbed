@@ -590,10 +590,17 @@ changing it.
         so lint works from any dir. Moving the state needed the VM overlays rebased, krew's
         links redone and Podman's storage reset, as its database holds absolute paths.
         Verified: both lints, and `just testbed::test-all` from the root, all passed.
-14. [ ] Docs: fill in [project.md](../.agents/project.md) with the layout and recipes; the skill
+14. [x] Docs: fill in [project.md](../.agents/project.md) with the layout and recipes; the skill
         is in the [agent index](../.agents/README.md) since step 12. In the root README, add the
         end goal (see [Goal](#goal)) and a short usage section that links to
         `testbed/docs/udd/`.
+
+        Done: `project.md` maps the repo, not the testbed: the components side by side, with
+        `testbed/` the only one so far, how `just` lists recipes per folder, and the repo-wide
+        conventions. It doesn't repeat the testbed's docs or its recipes, which `just` lists;
+        `up` / `down` are still open, so the README's usage runs `registry-up` and `vm-up`.
+        The end goal from [Goal](#goal) was left out of the README after review, as it's no
+        longer in scope.
 15. [ ] Licensing: relicense the whole project from MPL-2.0 to MIT-0 and make it
         [REUSE](https://reuse.software/) compliant. Add `reuse` to the Dockerfile's tooling
         line (and install it by hand, see [Steps](#steps)).

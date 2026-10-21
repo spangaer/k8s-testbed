@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Resolve the latest upstream value of each pin in versions.just, with checksums from the
+# Resolve the latest upstream value of each pin in testbed/versions.just, with checksums from the
 # upstream checksum files, and print them next to the current ones. Changes nothing.
 # usage: latest.sh [<k3s channel>], e.g. stable (default), latest, or v1.36 to stay on a minor
 set -euo pipefail
 
 channel=${1:-stable}
-root=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
-# shellcheck source=env/lib.sh
-source "$root/env/lib.sh"
+testbed=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)/testbed
+# shellcheck source=SCRIPTDIR/../../../../testbed/env/lib.sh
+source "$testbed/env/lib.sh"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
@@ -17,7 +17,7 @@ get() { curl -fsSL --retry 3 --max-time 60 "$@"; }
 target() { curl -fsS --retry 3 -o /dev/null -w '%{redirect_url}' "$1"; }
 # the checksum of a file from a `<sum>  <name>` list on stdin, fails if it's not there
 sum_of() { awk -v f="$1" '$2 == f || $2 == "*" f { print $1; n++ } END { exit n != 1 }'; }
-current() { just --justfile "$root/justfile" --evaluate "$1"; }
+current() { just --justfile "$testbed/justfile" --evaluate "$1"; }
 
 declare -A want
 order=()

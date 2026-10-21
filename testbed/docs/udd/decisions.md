@@ -12,7 +12,7 @@
 | Local runs | `podman run`, host network, bound `/proc` | build tools, quick image checks |
 | Image transport | `docker-registry` process in devcontainer | native speed, survives VM resets |
 | Packages | Debian packages, `--no-install-recommends` | small, and keeps systemd out |
-| Downloads | pinned versions, cached in `.local/cache/` | spares public mirrors, fast resets |
+| Downloads | pinned versions, cached in `.local/testbed/cache/` | spares mirrors, fast resets |
 
 ## Cluster
 

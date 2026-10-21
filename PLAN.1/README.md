@@ -46,7 +46,7 @@ k3s and kubectl are pinned to the same Kubernetes minor version. kubectl is alwa
 upstream binary, cached and checksum-verified; Debian's package lags behind k3s.
 
 Resolved: k3s `v1.36.5+k3s1` (the `stable` channel) and kubectl `v1.36.5`. All pins live in
-[versions.just](../versions.just).
+[versions.just](../testbed/versions.just).
 
 ## Design
 
@@ -83,8 +83,8 @@ devcontainer                                   cluster VM (KVM or TCG), Debian 1
   apart.
 - **Podman.** Runs rootless, for builds and local runs. Buildah isn't needed as a separate
   tool, `podman build` uses it as a library. Details and measurements are in
-  [constraints.md](../docs/udd/testbed/constraints.md#podman) and
-  [decisions.md](../docs/udd/testbed/decisions.md#podman).
+  [constraints.md](../testbed/docs/udd/constraints.md#podman) and
+  [decisions.md](../testbed/docs/udd/decisions.md#podman).
   - ID mapping: `/etc/subuid` and `/etc/subgid` hold `vscode:1:999` and `vscode:1001:64536`,
     and `newuidmap` / `newgidmap` use file capabilities (`cap_setuid` / `cap_setgid`) instead
     of setuid root, which fails here for lack of `sys_admin`. Without either fix, Buildah
@@ -114,7 +114,7 @@ devcontainer                                   cluster VM (KVM or TCG), Debian 1
     `cgroupfs`.
   - `netavark` must be installed, even though it isn't used with the host network.
 - **Build VM.** A second QEMU VM with Docker, BuildKit via `docker-buildx`, see
-  [decisions.md](../docs/udd/testbed/decisions.md#build-vm). Separate from the cluster VM, so
+  [decisions.md](../testbed/docs/udd/decisions.md#build-vm). Separate from the cluster VM, so
   builds don't compete with k3s and `vm-reset` keeps the build cache. Started on demand, not by
   `up`.
   - the devcontainer's `docker` CLI talks to `DOCKER_HOST=tcp://127.0.0.1:2375`, a `hostfwd`
@@ -127,7 +127,8 @@ devcontainer                                   cluster VM (KVM or TCG), Debian 1
     `localhost:5000/<name>`, so manifests don't change.
   - cloud-init installs `docker.io`, `docker-cli` and `docker-buildx` from the Debian mirror
     on first boot, with recommends off, and adds `debian` to the `docker` group.
-- **State.** Persistent runtime state lives under `.local/`, which is gitignored and sits in
+- **State.** Persistent runtime state lives under `.local/testbed/` (below, `.local/` is short for
+  it), which is gitignored and sits in
   the workspace bind mount, so it survives a devcontainer rebuild. User-level containers config
   is recreated by `setup`, and temporary process state is recreated on startup:
   - `.local/cache/`: downloads, fetched once and checksum-verified: the Debian cloud image, and
@@ -158,9 +159,13 @@ devcontainer                                   cluster VM (KVM or TCG), Debian 1
 
 ### Proposed source layout
 
+The testbed sits in `testbed/`, so the repo can be forked to build next to it, leaving that folder
+mostly intact. Below, paths from `justfile` to `test/` are under `testbed/`.
+
 ```
-justfile                       recipes, see below
+justfile (root)                `mod testbed`, plus repo-wide `setup` and `lint`
 .devcontainer/kvm-link.sh      on the host: link /dev/kvm for the devcontainer if usable
+justfile                       recipes, see below
 versions.just                  pinned versions and checksums, imported by the justfile
 env/setup.sh                   devcontainer setup, run by `just setup`
 env/krew.sh                    krew and its plugins, run by `just setup`
@@ -179,12 +184,13 @@ test/hello.sh                  build, push, roll out and curl hello under a fres
 test/vm-ssh.sh                 regression test for vm-ssh argument handling
 test/whoami.sh                 smoke test: deploy the public whoami image, curl the ingress
 test/whoami/whoami.yaml        Deployment + Service + Ingress for whoami
-.agents/skills/bump-versions/  agent skill: bump the pins in versions.just, then validate
-docs/udd/testbed/              overview: how it fits together, constraints, decisions, gotchas
+.agents/skills/testbed-bump-versions/ agent skill: bump the pins in versions.just, then validate
+docs/udd/                      overview: how it fits together, constraints, decisions, gotchas
 ```
 
 ### Recipes (`just`)
 
+Run in `testbed/`, or as `just testbed::<recipe>` from the root, which can't set variables.
 The `vm-*` recipes act on the cluster VM by default, and on the build VM with `just vm=build ...`.
 `test-hello-up` builds with Podman by default, and through the build VM with
 `just builder=docker ...`.
@@ -241,7 +247,7 @@ changing it.
       metrics-server running), and tune the vCPU/RAM defaults from that.
 
       Results, with 16 host vCPUs, measured with 6 guest vCPUs and 8 GB (key numbers moved to
-      [decisions.md](../docs/udd/testbed/decisions.md#measurements)):
+      [decisions.md](../testbed/docs/udd/decisions.md#measurements)):
       - first boot: ssh after 59 s, cloud-init done after 67 s; root fs grew to 30 GB
       - airgapped k3s install from a 274 MB `seed.iso` (works fine, no data disk needed):
         script 88 s, node `Ready` 95 s, traefik and metrics-server running 262 s
@@ -259,8 +265,8 @@ changing it.
       privileges.
 
       Results, with the same 16 host vCPUs (see
-      [constraints.md](../docs/udd/testbed/constraints.md) and
-      [decisions.md](../docs/udd/testbed/decisions.md#builds)):
+      [constraints.md](../testbed/docs/udd/constraints.md) and
+      [decisions.md](../testbed/docs/udd/decisions.md#builds)):
       - Podman's default runtime path fails: crun can't mount a fresh `/proc`. Setuid
         `newuidmap` fails too, and the default subordinate range `100000:65536` lies outside
         the container's IDs.
@@ -560,7 +566,7 @@ changing it.
         and the step-by-step probing, but keep the explanations of why, and the key
         measurements behind sizing and timeouts.
 
-        Done: [docs/udd/testbed/](../docs/udd/testbed/README.md) has 4 pages: the overview with
+        Done: [docs/udd/testbed/](../testbed/docs/udd/README.md) has 4 pages: the overview with
         the pieces, a VM's lifecycle and the state under `.local/`; the constraints and
         workarounds; the decisions, with rejected alternatives and the measurements; and the
         gotchas. Most of the why was already inline since the steps; comments were added for
@@ -572,10 +578,22 @@ changing it.
         `vm-reset`; accepted, so both templates got comments too: the cluster's on the
         airgapped install, the addons, the kubeconfig mode and the `debian` user's sudo, the
         build VM's on TCP over `ssh://`.
+
+        Reorg, after review: the testbed moved into `testbed/` (`env/`, `test/`, `justfile`,
+        `versions.just`, and `docs/udd/testbed/` as `docs/udd/`), and its state into
+        `.local/testbed/`, so the repo can be forked to build next to it. The root `justfile`
+        has `mod testbed` and repo-wide `setup` and `lint`; module recipes run in `testbed/`,
+        but variables can't be set from the root, hence `cd testbed` for `vm=build`. The
+        testbed justfile finds `.local/` through `source_directory()`, as `justfile_directory()`
+        is the root's in a module. `hello.sh` takes the local dir, like `all.sh`, and computes
+        the overlay's path to the base. shellcheck `source=` directives are `SCRIPTDIR`-based,
+        so lint works from any dir. Moving the state needed the VM overlays rebased, krew's
+        links redone and Podman's storage reset, as its database holds absolute paths.
+        Verified: both lints, and `just testbed::test-all` from the root, all passed.
 14. [ ] Docs: fill in [project.md](../.agents/project.md) with the layout and recipes; the skill
         is in the [agent index](../.agents/README.md) since step 12. In the root README, add the
         end goal (see [Goal](#goal)) and a short usage section that links to
-        `docs/udd/testbed/`.
+        `testbed/docs/udd/`.
 15. [ ] Licensing: relicense the whole project from MPL-2.0 to MIT-0 and make it
         [REUSE](https://reuse.software/) compliant. Add `reuse` to the Dockerfile's tooling
         line (and install it by hand, see [Steps](#steps)).
@@ -593,7 +611,7 @@ changing it.
           `reuse lint` fails on any header with another license, so no extra check is needed.
         - `NOTICE` goes, as it's an Apache convention that MIT-0 doesn't need; drop
           [notes.md](../notes.md), as the headers replace its snippet
-        - the `lint` recipe, which runs `shellcheck` since step 8, adds `reuse lint`;
+        - the root `lint` recipe, which runs `shellcheck` since step 8, adds `reuse lint`;
           `.local/` is ignored through `.gitignore`
 
 ## Done when

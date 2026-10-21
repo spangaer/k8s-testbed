@@ -6,7 +6,7 @@
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
-# shellcheck source=env/lib.sh
+# shellcheck source=SCRIPTDIR/lib.sh
 source "$here/lib.sh"
 
 local_dir=$1 kubectl_file=$2 kubectl_url=$3 kubectl_sha256=$4

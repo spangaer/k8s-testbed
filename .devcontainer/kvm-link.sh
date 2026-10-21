@@ -1,13 +1,13 @@
 #!/bin/sh
 # Runs on the host, from initializeCommand, before the devcontainer is created.
-# devcontainer.json passes .local/host/kvm as --device /dev/kvm, and runArgs can't be
+# devcontainer.json passes .local/testbed/host/kvm as --device /dev/kvm, and runArgs can't be
 # conditional, so point that link at /dev/kvm if a probe container can open the device, else
 # at /dev/null, as --device needs a device. Either way the container starts, and vm.sh picks
 # KVM only if it gets a usable /dev/kvm. The link is resolved when the container is created, so
 # a change in access needs a rebuild.
 set -eu
 
-dir=$(cd "$(dirname "$0")/.." && pwd)/.local/host
+dir=$(cd "$(dirname "$0")/.." && pwd)/.local/testbed/host
 link=$dir/kvm
 image=docker.io/library/busybox
 

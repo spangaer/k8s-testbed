@@ -8,7 +8,7 @@
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
-# shellcheck source=env/lib.sh
+# shellcheck source=SCRIPTDIR/lib.sh
 source "$here/lib.sh"
 
 cache=$1 version=$2 url=$3 archive_sha256=$4 manifest_sha256=$5 index_rev=$6

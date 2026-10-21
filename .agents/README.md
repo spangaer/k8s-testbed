@@ -6,4 +6,4 @@
 
 ## Skills
 
-- [Bump pinned versions](./skills/bump-versions/SKILL.md)
+- [Bump the testbed's pinned versions](./skills/testbed-bump-versions/SKILL.md)

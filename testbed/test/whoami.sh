@@ -6,7 +6,7 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
-# shellcheck source=env/lib.sh
+# shellcheck source=SCRIPTDIR/../env/lib.sh
 source env/lib.sh
 
 manifest=test/whoami/whoami.yaml

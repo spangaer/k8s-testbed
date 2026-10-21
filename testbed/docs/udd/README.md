@@ -13,6 +13,10 @@ registry and 2 ways to build images, all without giving the devcontainer privile
 The why of a single detail is in a comment next to it, in the scripts, recipes, config and
 cloud-init templates. These pages cover what spans files.
 
+Paths are relative to `testbed/`, except `.devcontainer/` and `.local/` in the repo root. Run
+recipes with `just` in `testbed/`, or as `just testbed::<recipe>` from the root, which can't set
+variables like `vm=build`.
+
 ## Pieces
 
 ```
@@ -58,13 +62,14 @@ devcontainer                                   cluster VM (KVM or TCG), Debian 1
   root-level changes are lost on a rebuild; it's safe to rerun, and repairs what a package
   upgrade reset.
 - **KVM.** On the host, before the devcontainer is created, `.devcontainer/kvm-link.sh` points
-  `.local/host/kvm` at `/dev/kvm` if a probe container can open it, else at `/dev/null`;
-  `runArgs` passes that link as `/dev/kvm`. `env/vm.sh` picks KVM only for the real device.
+  `.local/testbed/host/kvm` at `/dev/kvm` if a probe container can open it, else at
+  `/dev/null`; `runArgs` passes that link as `/dev/kvm`. `env/vm.sh` picks KVM only for the real
+  device.
 
 Both builders take the same `build` and `push` arguments, so recipes pick the command from the
 `builder` variable. The `vm-*` recipes act on the cluster VM, or on the build VM with
 `vm=build`; per-VM settings, like ports, sizing, readiness phases and timeouts, are in
-[vm.sh](../../../env/vm.sh).
+[vm.sh](../../env/vm.sh).
 
 ### Lifecycle of a VM
 
@@ -91,20 +96,20 @@ can't get an unrelated process stopped.
 
 ## State
 
-Everything at runtime lives under `.local/`, which is gitignored and sits in the workspace bind
-mount, so it survives a devcontainer rebuild.
+Everything at runtime lives under `.local/testbed/` in the repo root, which is gitignored and
+sits in the workspace bind mount, so it survives a devcontainer rebuild.
 
 | Path | Holds |
 |---|---|
-| `.local/cache/` | pinned downloads, with the version in the file name |
-| `.local/vm/id_ed25519` | the ssh key, shared by both VMs |
-| `.local/vm/<vm>/` | overlay disk, seed, `settings`, `known_hosts`, pid file, QMP socket, logs |
-| `.local/vm/cluster/kubeconfig` | admin credentials for the cluster, mode `0600` |
-| `.local/registry/` | registry storage, pid file and log |
-| `.local/podman/` | Podman's image and build storage |
-| `.local/krew/` | `KREW_ROOT`: krew and its plugins |
-| `.local/host/kvm` | the link `kvm-link.sh` writes on the host |
-| `.local/hello/` | the kustomize overlay of the last `test-hello-up` |
+| `.local/testbed/cache/` | pinned downloads, with the version in the file name |
+| `.local/testbed/vm/id_ed25519` | the ssh key, shared by both VMs |
+| `.local/testbed/vm/<vm>/` | overlay disk, seed, `settings`, `known_hosts`, pid file, QMP, logs |
+| `.local/testbed/vm/cluster/kubeconfig` | admin credentials for the cluster, mode `0600` |
+| `.local/testbed/registry/` | registry storage, pid file and log |
+| `.local/testbed/podman/` | Podman's image and build storage |
+| `.local/testbed/krew/` | `KREW_ROOT`: krew and its plugins |
+| `.local/testbed/host/kvm` | the link `kvm-link.sh` writes on the host |
+| `.local/testbed/hello/` | the kustomize overlay of the last `test-hello-up` |
 
 Outside the workspace, `setup` writes `/etc/subuid`, `/etc/subgid`, `/usr/local/bin/kubectl`
 and the Podman config in `~/.config/containers/`, and Podman's runroot goes to `/tmp`. All of

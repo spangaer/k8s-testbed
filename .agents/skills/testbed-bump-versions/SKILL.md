@@ -1,17 +1,17 @@
 ---
-name: bump-versions
-description: 'Bump the pinned versions and checksums in versions.just: Debian cloud image, k3s
-  binary, airgap images and install.sh, kubectl, krew and the krew-index revision. Use when
-  asked to update, upgrade, bump or refresh pins, versions, checksums, k3s, Kubernetes,
-  kubectl, krew or the Debian image, or to check whether newer versions exist.'
+name: testbed-bump-versions
+description: 'Bump the pinned versions and checksums in testbed/versions.just: Debian cloud
+  image, k3s binary, airgap images and install.sh, kubectl, krew and the krew-index revision.
+  Use when asked to update, upgrade, bump or refresh pins, versions, checksums, k3s,
+  Kubernetes, kubectl, krew or the Debian image, or to check whether newer versions exist.'
 argument-hint: 'optional k3s channel: stable (default), latest, or a minor like v1.36'
 ---
 
-# Bump pinned versions
+# Bump the testbed's pinned versions
 
-Every download is pinned in [versions.just](../../../versions.just), with its checksum, and
-cached in `.local/cache/` under a file name that carries the version. A bump fetches anew and
-leaves the old files; the VMs refuse the new pins until they're reset.
+Every download is pinned in [versions.just](../../../testbed/versions.just), with its checksum,
+and cached in `.local/testbed/cache/` under a file name that carries the version. A bump fetches
+anew and leaves the old files; the VMs refuse the new pins until they're reset.
 
 ## Rules
 
@@ -29,16 +29,18 @@ leaves the old files; the VMs refuse the new pins until they're reset.
 
 ## Procedure
 
-1. Run `.agents/skills/bump-versions/scripts/latest.sh [<channel>]`. It changes nothing, and
+1. Run `.agents/skills/testbed-bump-versions/scripts/latest.sh [<channel>]`. It changes nothing, and
    prints each pin, marked with `*` and followed by the new value where it differs, then the
    krew plugins' versions, which `krew_index_rev` pins. If no pin differs, report that and
    stop. In the report, name the plugins whose version changes.
 2. For a new k3s minor, skim its release notes for breaking changes, e.g. in the bundled
    traefik, and mention them: `https://github.com/k3s-io/k3s/releases/tag/<version>`.
-3. Edit [versions.just](../../../versions.just): only the values, keep its comments and
+3. Edit [versions.just](../../../testbed/versions.just): only the values, keep its comments and
    expressions; split long strings with `+` to stay within 100 chars, as `debian_image_sha512`
-   is. Check with `just --evaluate <name>`, and rerun `latest.sh`: it must report 0 differing.
-4. Apply and validate, by what changed, stopping at the first failure:
+   is. Check with `just --evaluate <name>` in `testbed/`, and rerun `latest.sh`: it must report
+   0 differing.
+4. Apply and validate, by what changed, stopping at the first failure, running `just` in
+   `testbed/`:
    - kubectl, krew or krew-index: `just setup`; `kubectl version --client` and
      `kubectl krew list` show the new versions
    - Debian image or k3s: `just vm-reset`, then `just vm-up`; it fetches the new files, and
@@ -50,7 +52,7 @@ leaves the old files; the VMs refuse the new pins until they're reset.
    kernel and OS. End by stopping the build VM again if it wasn't running before the bump.
 5. Old cache files are only removed when asked. A cloud image must not be removed while a VM
    disk still uses it as backing file, check with
-   `qemu-img info -U --backing-chain .local/vm/*/disk.qcow2 | grep '^backing file:'`.
+   `qemu-img info -U --backing-chain .local/testbed/vm/*/disk.qcow2 | grep '^backing file:'`.
 6. Report old and new values, what ran and how long the first boots took. Write
    `commit-message.md`, following the commit rules in [AGENTS.md](../../../AGENTS.md), naming
    the versions, not the checksums. Don't commit.

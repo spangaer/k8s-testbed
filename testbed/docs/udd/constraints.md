@@ -48,7 +48,7 @@ rebuild loops.
 ### Podman
 
 Podman's default setup fails here in 3 places: ID mapping, `/proc` and the network.
-[setup.sh](../../../env/setup.sh) fixes each.
+[setup.sh](../../env/setup.sh) fixes each.
 
 **ID mapping.** Rootless Podman maps a range of subordinate IDs into its containers, so files in
 images can belong to other users than root.
@@ -81,7 +81,7 @@ fresh UTS namespace, which fails every `RUN` step and `podman run`. So container
 devcontainer's UTS namespace: `utsns = "host"`. Debugger features, like the rust feature's, set
 `seccomp=unconfined`, which hides this; check changes without them too.
 
-**Storage** is native overlay under `.local/podman/` on the ext4 workspace; neither
+**Storage** is native overlay under `.local/testbed/podman/` on the ext4 workspace; neither
 `fuse-overlayfs` nor `vfs` is needed. The runroot goes to `/tmp`, as `XDG_RUNTIME_DIR` is unset.
 
 **Resource limits** are silently ignored, as there's no cgroup per container. Kubernetes in the

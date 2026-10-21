@@ -2,17 +2,14 @@
 # build the hello image under a fresh tag, push it to the registry, roll the deployment over to
 # it and wait until the ingress serves that build; needs the registry and the cluster VM
 # running, which the recipes ensure. `up` leaves it running for a look; `down` removes it.
-# usage: hello.sh up <builder> | down
+# usage: hello.sh up <local dir> <builder> | down
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
-# shellcheck source=env/lib.sh
+# shellcheck source=SCRIPTDIR/../env/lib.sh
 source env/lib.sh
 
 base=test/hello
-# per run, as kustomize takes no values on the command line; refers to the base relatively, as
-# it rejects absolute paths
-overlay=.local/hello
 repo=localhost:5000/hello
 url=http://hello.localhost:8080/
 keep="kept for a look, remove with: just test-hello-down"
@@ -61,7 +58,8 @@ build() {
 }
 
 up() {
-    local builder=$1 previous
+    # the overlay is per run, as kustomize takes no values on the command line
+    local overlay=$1/hello builder=$2 previous
     # unique per run, so each run rolls out a new image, and the page tells which one answers
     tag=$(date -u +%Y%m%d-%H%M%S-%3N)
     expected="hello from $tag"
@@ -74,10 +72,11 @@ up() {
     # Applied without it, the image defaults to :latest, which is never pushed, so the pull fails
     # rather than running an outdated build.
     mkdir -p "$overlay"
+    # refers to the base relatively, as kustomize rejects absolute paths
     cat > "$overlay/kustomization.yaml" <<EOF
 # written by test/hello.sh, for the last run
 resources:
-  - ../../$base
+  - $(realpath --relative-to="$overlay" "$base")
 images:
   - name: $repo
     newTag: "$tag"
@@ -105,7 +104,7 @@ down() {
 }
 
 case ${1-} in
-    up) (($# == 2)) || die "usage: hello.sh up <builder>"; up "$2" ;;
+    up) (($# == 3)) || die "usage: hello.sh up <local dir> <builder>"; up "$2" "$3" ;;
     down) down ;;
-    *) die "usage: hello.sh up <builder> | down" ;;
+    *) die "usage: hello.sh up <local dir> <builder> | down" ;;
 esac

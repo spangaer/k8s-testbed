@@ -5,8 +5,9 @@ Surprises that span files. Those tied to one spot are commented there.
 ## Podman
 
 - **Storage holds files owned by mapped IDs**, so plain `rm`, `du` and file search tools hit
-  `Permission denied` in `.local/podman/`. Clean up with `podman rmi`, `podman system prune`,
-  or `podman system reset` to wipe it all; for raw file access, use `podman unshare`.
+  `Permission denied` in `.local/testbed/podman/`. Clean up with `podman rmi`,
+  `podman system prune`, or `podman system reset` to wipe it all; for raw file access, use
+  `podman unshare`.
 - **A missing ID mapping fix only warns.** Buildah then maps a single ID, and `chown` in builds
   is silently lost. If `podman unshare cat /proc/self/uid_map` shows fewer than 3 lines, rerun
   `just setup`; reinstalling `uidmap` resets the helpers' setuid bit and capabilities.

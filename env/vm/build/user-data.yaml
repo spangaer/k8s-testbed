@@ -19,8 +19,9 @@ write_files:
     content: |
       {"insecure-registries": ["10.0.2.2:5000"]}
   # The devcontainer's docker CLI comes in through QEMU's 2375 forward, bound to loopback
-  # there. Unauthenticated, so root in this VM for anyone in the devcontainer. dockerd takes
-  # all sockets docker.socket passes with its -H fd://, and ListenStream= adds to the list, so
+  # there; far faster than ssh://, which opens an ssh connection per API connection. It's
+  # unauthenticated, so root in this VM for anyone in the devcontainer. dockerd takes all
+  # sockets docker.socket passes with its -H fd://, and ListenStream= adds to the list, so
   # the package's units stay as they are. `hosts` in daemon.json would conflict with -H fd://.
   - path: /etc/systemd/system/docker.socket.d/tcp.conf
     permissions: "0644"

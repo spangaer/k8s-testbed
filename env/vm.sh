@@ -52,6 +52,8 @@ case $vm in
         ssh_port=2222
         # API server and traefik; 8080, as a non-root process can't bind ports below 1024
         forwards=(6443:6443 8080:80)
+        # the guest uses ~1.2 GB idle, with traefik and metrics-server; 6 GB leaves room for
+        # workloads, next to the build VM
         cpus=${VM_CPUS:-$(default_cpus)} mem=${VM_MEM:-6G} disk_size=${VM_DISK:-30G}
         phases=(boot cloud-init node addons ingress)
         # with 8 vCPUs, the first boot with the k3s install took 6-7 min under TCG and ~1 min
@@ -62,6 +64,7 @@ case $vm in
         ssh_port=2223
         # the Docker API, for the devcontainer's CLI
         forwards=(2375:2375)
+        # the guest uses ~300 MB idle; builds get the rest
         cpus=${VM_CPUS:-$(($(nproc) < 4 ? $(nproc) : 4))} mem=${VM_MEM:-3G}
         disk_size=${VM_DISK:-20G}
         phases=(boot cloud-init docker)
@@ -105,6 +108,7 @@ remote_cmd() {
 # run a command in the guest, bounded, as an unresponsive guest can stall ssh
 guest() { timeout 60 ssh "${ssh_opts[@]}" debian@127.0.0.1 "$(remote_cmd "$@")"; }
 
+# the image's default debian user gets passwordless sudo from cloud-init
 kctl() { guest sudo -n k3s kubectl "$@"; }
 
 # the last non-empty line of the serial console, without escape sequences
@@ -176,7 +180,9 @@ ready_addons() {
     done
     ((n == 4))
 }
-# pod counts by phase, and the pods that aren't ready, without their generated name suffixes
+# Pod counts by phase, and the pods that aren't ready, without their generated name suffixes.
+# On a first boot, helm-install-traefik fails and restarts a few times while it waits for its
+# CustomResourceDefinitions (CRDs), from the traefik-crd chart; that's normal.
 status_addons() {
     local jp='{range .items[*]}{.metadata.name} {.status.phase}'
     jp+=' {.status.containerStatuses[*].ready}{"\n"}{end}'

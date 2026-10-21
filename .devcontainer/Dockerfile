@@ -12,7 +12,10 @@ RUN printf '%s\n' \
 # just: simpler more portable make
 # tk: Tcl/Tk runtime (wish) for the bundled git gui and gitk
 # shellcheck: lint for shell scripts
-RUN apt-get update && apt-get install -y time ripgrep just tk shellcheck
+# iputils-ping: ping, for basic network reachability checks
+# dnsutils: dig and nslookup, for debugging DNS resolution
+RUN apt-get update && apt-get install -y time ripgrep just tk shellcheck iputils-ping \
+      dnsutils
 
 # k8s test env tooling
 # qemu-*, cloud-image-utils: cluster and build VMs under TCG, seed.iso via genisoimage

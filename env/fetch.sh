@@ -25,6 +25,8 @@ fi
 
 mkdir -p "$(dirname "$file")"
 note "$url"
+
+# to a .part file, renamed once verified, so an interrupted download never looks complete
 curl -fL --retry 3 --progress-bar -o "$file.part" "$url"
 if ! check "$file.part"; then
     rm -f "$file.part"

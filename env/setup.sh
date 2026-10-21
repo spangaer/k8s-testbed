@@ -106,7 +106,10 @@ netns = "host"
 utsns = "host"
 # A fresh /proc mount is denied, as Podman masked parts of the devcontainer's /proc. A
 # recursive bind keeps those masks, so it's allowed, and containers keep a private PID
-# namespace. Inside, /proc shows the devcontainer's processes, not the container's.
+# namespace. Inside, /proc shows the devcontainer's processes, not the container's, so ps and
+# /proc/<pid> lookups are off. --pid=host fixes that per run, but then podman stop hangs: with
+# no cgroup of its own, there's nothing to signal, while a private PID namespace ends with its
+# PID 1. Resource limits are ignored either way, for the same lack of a cgroup.
 volumes = ["/proc:/proc:rbind"]
 
 [engine]

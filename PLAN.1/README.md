@@ -83,7 +83,8 @@ devcontainer                                   cluster VM (KVM or TCG), Debian 1
   apart.
 - **Podman.** Runs rootless, for builds and local runs. Buildah isn't needed as a separate
   tool, `podman build` uses it as a library. Details and measurements are in
-  [spike-s2.md](./spike-s2.md), part 3.
+  [constraints.md](../docs/udd/testbed/constraints.md#podman) and
+  [decisions.md](../docs/udd/testbed/decisions.md#podman).
   - ID mapping: `/etc/subuid` and `/etc/subgid` hold `vscode:1:999` and `vscode:1001:64536`,
     and `newuidmap` / `newgidmap` use file capabilities (`cap_setuid` / `cap_setgid`) instead
     of setuid root, which fails here for lack of `sys_admin`. Without either fix, Buildah
@@ -113,8 +114,9 @@ devcontainer                                   cluster VM (KVM or TCG), Debian 1
     `cgroupfs`.
   - `netavark` must be installed, even though it isn't used with the host network.
 - **Build VM.** A second QEMU VM with Docker, BuildKit via `docker-buildx`, see
-  [spike-s2.md](./spike-s2.md), part 2. Separate from the cluster VM, so builds don't compete
-  with k3s and `vm-reset` keeps the build cache. Started on demand, not by `up`.
+  [decisions.md](../docs/udd/testbed/decisions.md#build-vm). Separate from the cluster VM, so
+  builds don't compete with k3s and `vm-reset` keeps the build cache. Started on demand, not by
+  `up`.
   - the devcontainer's `docker` CLI talks to `DOCKER_HOST=tcp://127.0.0.1:2375`, a `hostfwd`
     to the daemon. A `docker.socket` drop-in adds `ListenStream=0.0.0.0:2375`; dockerd takes
     all sockets passed with the unit's `-H fd://`, so the package's units stay untouched.
@@ -178,6 +180,7 @@ test/vm-ssh.sh                 regression test for vm-ssh argument handling
 test/whoami.sh                 smoke test: deploy the public whoami image, curl the ingress
 test/whoami/whoami.yaml        Deployment + Service + Ingress for whoami
 .agents/skills/bump-versions/  agent skill: bump the pins in versions.just, then validate
+docs/udd/testbed/              overview: how it fits together, constraints, decisions, gotchas
 ```
 
 ### Recipes (`just`)
@@ -237,8 +240,8 @@ changing it.
       and install k3s by hand. Measure boot time, k3s-ready time and idle CPU (with traefik and
       metrics-server running), and tune the vCPU/RAM defaults from that.
 
-      Results, with 16 host vCPUs, measured with 6 guest vCPUs and 8 GB (see
-      [spike-s1.md](./spike-s1.md) for the commands):
+      Results, with 16 host vCPUs, measured with 6 guest vCPUs and 8 GB (key numbers moved to
+      [decisions.md](../docs/udd/testbed/decisions.md#measurements)):
       - first boot: ssh after 59 s, cloud-init done after 67 s; root fs grew to 30 GB
       - airgapped k3s install from a 274 MB `seed.iso` (works fine, no data disk needed):
         script 88 s, node `Ready` 95 s, traefik and metrics-server running 262 s
@@ -255,7 +258,9 @@ changing it.
       a base image and build an image with a real `RUN` instruction, without new devices or
       privileges.
 
-      Results, with the same 16 host vCPUs (see [spike-s2.md](./spike-s2.md)):
+      Results, with the same 16 host vCPUs (see
+      [constraints.md](../docs/udd/testbed/constraints.md) and
+      [decisions.md](../docs/udd/testbed/decisions.md#builds)):
       - Podman's default runtime path fails: crun can't mount a fresh `/proc`. Setuid
         `newuidmap` fails too, and the default subordinate range `100000:65536` lies outside
         the container's IDs.
@@ -546,18 +551,31 @@ changing it.
         lists `tree` and `neat` as changed; on `latest` it also finds k3s and kubectl v1.37.1;
         an unknown channel fails clearly, ~5 s per run. `just setup` is still a no-op. Not run
         end to end, on request: an actual bump with its VM resets.
-13. [ ] Transfer the spike learnings, so the spike logs are no longer needed. The why goes
+13. [x] Transfer the spike learnings, so the spike logs are no longer needed. The why goes
         next to the what: inline comments in scripts, recipes, config and cloud-init
-        templates are the first choice. The overview goes to `docs/udd/testsetup/`: how the
+        templates are the first choice. The overview goes to `docs/udd/testbed/`: how the
         pieces fit together, the devcontainer constraints and how each part works around
         them, the decisions with the alternatives that were rejected, and the gotchas that
         don't belong to a single file. Drop the redundant parts, like command transcripts
         and the step-by-step probing, but keep the explanations of why, and the key
         measurements behind sizing and timeouts.
+
+        Done: [docs/udd/testbed/](../docs/udd/testbed/README.md) has 4 pages: the overview with
+        the pieces, a VM's lifecycle and the state under `.local/`; the constraints and
+        workarounds; the decisions, with rejected alternatives and the measurements; and the
+        gotchas. Most of the why was already inline since the steps; comments were added for
+        the `.part` downloads, the guest's `sudo`, the VMs' RAM defaults, the traefik helm
+        restarts, `--pid=host` and resource limits in `containers.conf`, the registry's
+        missing unit and the Dockerfile name. `latest.sh` got the `--max-time` S1 called for.
+        The spike logs are gone, and links to them point to the docs. Gotcha: a comment in
+        a `user-data` template changes its hash in `settings`, so `vm-image` asks for a
+        `vm-reset`; accepted, so both templates got comments too: the cluster's on the
+        airgapped install, the addons, the kubeconfig mode and the `debian` user's sudo, the
+        build VM's on TCP over `ssh://`.
 14. [ ] Docs: fill in [project.md](../.agents/project.md) with the layout and recipes; the skill
         is in the [agent index](../.agents/README.md) since step 12. In the root README, add the
         end goal (see [Goal](#goal)) and a short usage section that links to
-        `docs/udd/testsetup/`.
+        `docs/udd/testbed/`.
 15. [ ] Licensing: relicense the whole project from MPL-2.0 to MIT-0 and make it
         [REUSE](https://reuse.software/) compliant. Add `reuse` to the Dockerfile's tooling
         line (and install it by hand, see [Steps](#steps)).

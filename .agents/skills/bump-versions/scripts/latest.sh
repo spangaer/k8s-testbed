@@ -11,7 +11,8 @@ source "$root/env/lib.sh"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
-get() { curl -fsSL --retry 3 "$@"; }
+# bounded, as cloud.debian.org's directory listing sometimes stalls; --retry covers timeouts
+get() { curl -fsSL --retry 3 --max-time 60 "$@"; }
 # where a redirect, like a GitHub latest release or a k3s channel, points to
 target() { curl -fsS --retry 3 -o /dev/null -w '%{redirect_url}' "$1"; }
 # the checksum of a file from a `<sum>  <name>` list on stdin, fails if it's not there

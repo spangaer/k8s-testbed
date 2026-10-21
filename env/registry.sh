@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # start or stop the local registry; safe to repeat
+# Started directly with our config, as there's no systemd for the package's unit.
 # usage: registry.sh up|down|running <local dir>; running exits 0 if it runs, quietly
 set -euo pipefail
 

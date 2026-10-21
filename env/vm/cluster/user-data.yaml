@@ -1,10 +1,12 @@
 #cloud-config
-# no `users:` block, as it would replace the image's default `debian` user
+# No `users:` block, as it would replace the image's default `debian` user. cloud-init gives
+# that user the key and passwordless sudo, which vm.sh relies on, e.g. for the kubeconfig.
 ssh_authorized_keys:
   - ${SSH_PUBKEY}
 
 write_files:
-  # plain-HTTP mirror: slirp routes 10.0.2.2 to the devcontainer's loopback
+  # plain-HTTP mirror: slirp routes 10.0.2.2 to the devcontainer's loopback; manifests keep
+  # localhost:5000/<name>, whichever builder pushed it
   - path: /etc/rancher/k3s/registries.yaml
     permissions: "0644"
     content: |
@@ -13,6 +15,10 @@ write_files:
           endpoint:
             - "http://10.0.2.2:5000"
 
+# Airgapped install from the files seed.sh put on the seed ISO, at the versions pinned in
+# versions.just, so a reset VM needs no downloads. The images tarball is picked up from k3s's
+# images dir on start. No INSTALL_K3S_EXEC, so the bundled traefik and metrics-server stay,
+# for the ingress. The kubeconfig holds admin credentials, hence 0600.
 runcmd:
   - |
     set -euo pipefail

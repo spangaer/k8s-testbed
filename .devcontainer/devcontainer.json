@@ -1,19 +1,40 @@
+// SPDX-FileCopyrightText: Jean-Luc Deprez <https://github.com/spangaer>
+// SPDX-License-Identifier: MIT
+
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the
-// README at: https://github.com/devcontainers/templates/tree/main/src/rust
 {
-    "name": "lrs-template",
-    // Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
-    // "image": "mcr.microsoft.com/devcontainers/rust:2-1-trixie",
+    "name": "k8s-testbed",
     "build": {
         "dockerfile": "Dockerfile"
+    },
+    // root-level setup is lost on rebuild, so redo it; safe to rerun by hand too
+    "postCreateCommand": "just setup",
+    // connect only after setup, so the server and its terminals start with the KVM group it
+    // may add; groups are fixed per process, only a container restart refreshes them
+    "waitFor": "postCreateCommand",
+    // KVM if a probe container can open it, else /dev/null; vm.sh falls back to TCG then.
+    // --device, unlike a bind mount, also gets the device past rootful Docker's device cgroup.
+    "initializeCommand": [
+        "sh",
+        "${localWorkspaceFolder}/.devcontainer/kvm-link.sh"
+    ],
+    "runArgs": [
+        "--device=${localWorkspaceFolder}/.local/testbed/host/kvm:/dev/kvm"
+    ],
+    // same defaults as testbed/justfile, so a plain kubectl and docker work in terminals too;
+    // PATH adds krew's bin last, so its plugins can't shadow system tools
+    "remoteEnv": {
+        "KUBECONFIG": "${containerWorkspaceFolder}/.local/testbed/vm/cluster/kubeconfig",
+        "DOCKER_HOST": "tcp://127.0.0.1:2375",
+        "KREW_ROOT": "${containerWorkspaceFolder}/.local/testbed/krew",
+        "PATH": "${containerEnv:PATH}:${containerWorkspaceFolder}/.local/testbed/krew/bin"
     },
     "customizations": {
         "vscode": {
             "extensions": [
                 "streetsidesoftware.code-spell-checker",
                 "eamodio.gitlens",
-                "-serayuzgur.crates",
-                "fill-labs.dependi"
+                "github.vscode-pull-request-github"
             ],
             "settings": {
                 "gitlens.gitkraken.mcp.autoEnabled": false,
@@ -21,27 +42,8 @@
                     "approvals": "assisted"
                 }
                 // never mind sandbox, doesn't work in podman containers
-                // long running agentic flows are also not of concern for lrs projects
                 // "chat.agent.sandbox.enabled": "on"
             }
         }
     }
-    // Use 'mounts' to make the cargo cache persistent in a Docker Volume.
-    // "mounts": [
-    // 	{
-    // 		"source": "devcontainer-cargo-cache-${devcontainerId}",
-    // 		"target": "/usr/local/cargo",
-    // 		"type": "volume"
-    // 	}
-    // ]
-    // Features to add to the dev container. More info: https://containers.dev/features.
-    // "features": {},
-    // Use 'forwardPorts' to make a list of ports inside the container available locally.
-    // "forwardPorts": [],
-    // Use 'postCreateCommand' to run commands after the container is created.
-    // "postCreateCommand": "rustc --version",
-    // Configure tool-specific properties.
-    // "customizations": {},
-    // Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
-    // "remoteUser": "root"
 }

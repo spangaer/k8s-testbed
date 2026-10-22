@@ -1,0 +1,7 @@
+# SPDX-FileCopyrightText: Jean-Luc Deprez <https://github.com/spangaer>
+# SPDX-License-Identifier: MIT
+
+# base for test/hello.sh, which applies it through an overlay in .local/testbed/hello that
+# sets the tag
+resources:
+  - hello.yaml

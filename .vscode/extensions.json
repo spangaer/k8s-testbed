@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Jean-Luc Deprez <https://github.com/spangaer>
+// SPDX-License-Identifier: MIT
+
 {
     "recommendations": [
         "streetsidesoftware.code-spell-checker"

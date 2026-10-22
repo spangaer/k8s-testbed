@@ -1,9 +1,7 @@
+// SPDX-FileCopyrightText: Jean-Luc Deprez <https://github.com/spangaer>
+// SPDX-License-Identifier: MIT
 {
     "editor.formatOnSave": true,
     "files.encoding": "utf8",
-    "files.eol": "\n",
-    "formatFiles.extensionsToInclude": "rs,toml",
-    "formatFiles.excludedFolders": [
-        "target"
-    ]
+    "files.eol": "\n"
 }

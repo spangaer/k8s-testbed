@@ -10,8 +10,8 @@
 
 ### Generation & review
 
-- Respect the 100 char line length
-- For comments:
+- respect the 100 char line length
+- for comments:
   - simple comments should avoid initial capitalization and punctuation where possible, while
     preserving standard capitalization where commonly expected
   - complex or multi-sentence comments should use normal capitalization and punctuation
@@ -19,6 +19,7 @@
 - remove or flag redundant wording; keep it concise
 - fix spelling and grammar without changing meaning
 - cross-check linked/referring statements 1 level deep during review
+- don't be pedantic, don't change things that adhere to stated rules
 
 #### Commit Message
 

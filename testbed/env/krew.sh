@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: Jean-Luc Deprez <https://github.com/spangaer>
+# SPDX-License-Identifier: MIT
+
 # krew, the kubectl plugin manager, and plugins, all pinned; user-level, so no sudo
 # Safe to rerun: it only installs what's missing or differs from its pin, offline once cached.
 # Plugins come from krew-index at a commit, so they're "detached": a pin bump updates them, not

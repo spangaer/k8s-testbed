@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: Jean-Luc Deprez <https://github.com/spangaer>
+# SPDX-License-Identifier: MIT
+
 # Resolve the latest upstream value of each pin in testbed/versions.just, with checksums from the
 # upstream checksum files, and print them next to the current ones. Changes nothing.
 # usage: latest.sh [<k3s channel>], e.g. stable (default), latest, or v1.36 to stay on a minor

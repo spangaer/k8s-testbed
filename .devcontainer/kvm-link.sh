@@ -1,4 +1,8 @@
 #!/bin/sh
+
+# SPDX-FileCopyrightText: Jean-Luc Deprez <https://github.com/spangaer>
+# SPDX-License-Identifier: MIT
+
 # Runs on the host, from initializeCommand, before the devcontainer is created.
 # devcontainer.json passes .local/testbed/host/kvm as --device /dev/kvm, and runArgs can't be
 # conditional, so point that link at /dev/kvm if a probe container can open the device, else

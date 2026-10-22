@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Jean-Luc Deprez <https://github.com/spangaer>
+# SPDX-License-Identifier: MIT
+
 # tiny hello-world image: busybox httpd serving a page that names the image's tag, so a check
 # can tell which build answers; named Dockerfile, as docker build doesn't look for Containerfile
 FROM docker.io/library/busybox:1.37.0

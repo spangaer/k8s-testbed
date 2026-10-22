@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: Jean-Luc Deprez <https://github.com/spangaer>
+# SPDX-License-Identifier: MIT
+
 # regression test: `just vm-ssh` passes arguments to the guest unchanged, keeps stdin, exit
 # codes and the login shell for no arguments; needs the VM running, which the recipe ensures.
 # Plain ssh fails this, as it joins its arguments for the remote shell to split again, e.g.

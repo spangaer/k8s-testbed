@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: Jean-Luc Deprez <https://github.com/spangaer>
+# SPDX-License-Identifier: MIT
+
 # Manage a QEMU VM: create its disk and seed, boot it and wait until it's ready, shut it down
 # cleanly, ssh into it, reset it, and copy the cluster's kubeconfig out.
 # usage: vm.sh <vm> image <local dir> <base image> [<name in iso>=<file>...]

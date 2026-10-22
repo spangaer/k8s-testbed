@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: Jean-Luc Deprez <https://github.com/spangaer>
+# SPDX-License-Identifier: MIT
+
 # run every test, stopping at the first failure; afterwards, pass or fail, remove the hello
 # deployment and stop the VMs and registry that weren't running before, so nothing stays behind
 # usage: all.sh <local dir>

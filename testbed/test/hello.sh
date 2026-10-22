@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: Jean-Luc Deprez <https://github.com/spangaer>
+# SPDX-License-Identifier: MIT
+
 # build the hello image under a fresh tag, push it to the registry, roll the deployment over to
 # it and wait until the ingress serves that build; needs the registry and the cluster VM
 # running, which the recipes ensure. `up` leaves it running for a look; `down` removes it.

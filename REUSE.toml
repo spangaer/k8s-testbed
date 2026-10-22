@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: Jean-Luc Deprez <https://github.com/spangaer>
+# SPDX-License-Identifier: MIT
+
+# Markdown, mostly by and for agents, and .gitignore go without a header, under MIT-0 from here,
+# free for reuse without attribution; plain JSON can't hold one, so it's MIT from here;
+# everything else carries its own, see just annotate
+version = 1
+
+[[annotations]]
+path = ["**.md", "**.gitignore"]
+SPDX-FileCopyrightText = "Jean-Luc Deprez <https://github.com/spangaer>"
+SPDX-License-Identifier = "MIT-0"
+
+# VS Code's JSONC carries its own header, which takes precedence
+[[annotations]]
+path = "**.json"
+SPDX-FileCopyrightText = "Jean-Luc Deprez <https://github.com/spangaer>"
+SPDX-License-Identifier = "MIT"

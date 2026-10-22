@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: Jean-Luc Deprez <https://github.com/spangaer>
+# SPDX-License-Identifier: MIT
+
 # Build a VM's NoCloud seed.iso: user-data rendered from its template, meta-data, and extra
 # files for the guest, e.g. the cached k3s files for an airgapped install. The shared ssh key
 # is generated once if missing. meta-data is kept, so the instance ID stays stable across

@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Jean-Luc Deprez <https://github.com/spangaer>
+# SPDX-License-Identifier: MIT
+
 # local registry, started by `just registry-up`
 version: 0.1
 log:

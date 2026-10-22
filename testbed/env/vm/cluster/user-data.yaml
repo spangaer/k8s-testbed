@@ -1,4 +1,7 @@
 #cloud-config
+# SPDX-FileCopyrightText: Jean-Luc Deprez <https://github.com/spangaer>
+# SPDX-License-Identifier: MIT
+
 # No `users:` block, as it would replace the image's default `debian` user. cloud-init gives
 # that user the key and passwordless sudo, which vm.sh relies on, e.g. for the kubeconfig.
 ssh_authorized_keys:

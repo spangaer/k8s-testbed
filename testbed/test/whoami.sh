@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: Jean-Luc Deprez <https://github.com/spangaer>
+# SPDX-License-Identifier: MIT
+
 # smoke test: deploy the public traefik/whoami image and reach it through the ingress, which
 # checks the cluster without the registry; needs the cluster VM running, which the recipes
 # ensure. `up` deploys and checks, and leaves it running for a look; `down` removes it.

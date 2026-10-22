@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: Jean-Luc Deprez <https://github.com/spangaer>
+# SPDX-License-Identifier: MIT
+
 # devcontainer setup: ID mapping, kubectl, containers config and, if needed, the KVM group
 # Safe to rerun: it only changes what differs, so it also repairs what a package upgrade reset.
 # Root-level changes are lost on a devcontainer rebuild, so postCreateCommand reruns this.

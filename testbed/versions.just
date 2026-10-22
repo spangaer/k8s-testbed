@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Jean-Luc Deprez <https://github.com/spangaer>
+# SPDX-License-Identifier: MIT
+
 # pinned versions and checksums, imported by the justfile
 # k3s and kubectl must stay on the same Kubernetes minor
 

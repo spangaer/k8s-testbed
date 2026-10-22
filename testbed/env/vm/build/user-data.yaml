@@ -1,4 +1,7 @@
 #cloud-config
+# SPDX-FileCopyrightText: Jean-Luc Deprez <https://github.com/spangaer>
+# SPDX-License-Identifier: MIT
+
 # no `users:` block, as it would replace the image's default `debian` user
 ssh_authorized_keys:
   - ${SSH_PUBKEY}

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Jean-Luc Deprez <https://github.com/spangaer>
+// SPDX-License-Identifier: MIT
+
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the
 {
     "name": "k8s-testbed",

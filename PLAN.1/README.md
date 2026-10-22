@@ -601,25 +601,50 @@ changing it.
         `up` / `down` are still open, so the README's usage runs `registry-up` and `vm-up`.
         The end goal from [Goal](#goal) was left out of the README after review, as it's no
         longer in scope.
-15. [ ] Licensing: relicense the whole project from MPL-2.0 to MIT-0 and make it
+15. [x] Licensing: relicense the whole project from MPL-2.0 to MIT and make it
         [REUSE](https://reuse.software/) compliant. Add `reuse` to the Dockerfile's tooling
-        line (and install it by hand, see [Steps](#steps)).
-        - MIT-0 is the only license: text may mention MIT, MIT-0 or MPL-2.0, e.g. to explain
-          the choice, but only the MIT-0 license text is included, to avoid confusion
+        line (and install it by hand, see [Steps](#steps)). Changed from MIT-0 before the
+        step started; MIT-0 stays for what's free for reuse without attribution, see below.
+        - MIT and MIT-0 are the only licenses: text may mention others, e.g. to explain the
+          choice, but only their texts are included, to avoid confusion
         - every file that takes comments carries an SPDX header,
-          `SPDX-License-Identifier: MIT-0` and
-          `SPDX-FileCopyrightText: <year> Jean-Luc Deprez <https://github.com/spangaer>`, so a
-          copied file keeps its terms; `reuse annotate --recursive` does the tree at once,
-          keeping shebangs first
-        - `REUSE.toml` covers the files without comments, like JSON, with a single `**`
-          annotation for MIT-0 (verify it matches dotfiles too)
-        - `reuse download MIT-0` puts the text in `LICENSES/`; the root `LICENSE` is replaced
-          with the MIT-0 text, so GitHub still detects it. As `LICENSES/` holds MIT-0 only,
-          `reuse lint` fails on any header with another license, so no extra check is needed.
-        - `NOTICE` goes, as it's an Apache convention that MIT-0 doesn't need; drop
-          [notes.md](../notes.md), as the headers replace its snippet
+          `SPDX-License-Identifier: MIT` and
+          `SPDX-FileCopyrightText: Jean-Luc Deprez <https://github.com/spangaer>`, so a
+          copied file keeps its terms, keeping shebangs first; a root `annotate` recipe, running
+          `.reuse/annotate.sh`, does the tree at once. VS Code's JSON (`.devcontainer/`,
+          `.vscode/`, `*.code-workspace`) is JSONC, so it takes one too; other JSON can't, and
+          `REUSE.toml` covers it under MIT.
+        - Markdown, mostly notes for agents, and `.gitignore` go without a header, as that
+          would be pedantic; `REUSE.toml` covers them, by those paths only, under MIT-0. No
+          `**` catch-all, so a file nothing covers fails `reuse lint`.
+        - `reuse download MIT MIT-0` puts the texts in `LICENSES/`; the root `LICENSE` is
+          replaced with the MIT text, so GitHub still detects it. As `LICENSES/` holds MIT and
+          MIT-0 only, `reuse lint` fails on any header with another license, so no extra check
+          is needed.
+        - `NOTICE` goes, as it's an Apache convention that MIT doesn't need; drop `notes.md`,
+          as the headers replace its snippet
         - the root `lint` recipe, which runs `shellcheck` since step 8, adds `reuse lint`;
           `.local/` is ignored through `.gitignore`
+
+        Done: reuse 5.0.2. `reuse annotate` reads no `REUSE.toml` and can't exclude, even with
+        `precedence = "override"` or `--skip-existing`, so `just annotate` feeds it the git file
+        list, minus Markdown, `.gitignore`, `LICENSE*`, `.reuse/` and the `user-data` templates,
+        with `--skip-existing`. It doesn't know justfiles, so those get `--style python`; it takes
+        JSON for uncommentable and writes a `.license` file even with `--style`, so the script
+        prepends the `//` header itself, to VS Code's JSONC only, between `REUSE-IgnoreStart` /
+        `-End` markers, else reuse takes the tags in the script for its own. The script sits in
+        `.reuse/`, next to a `compact` template that drops the default's blank comment line between
+        the tags; reuse skips `.reuse/` entirely, so neither needs covering, and the script's header
+        is by hand. By hand too: the `user-data` templates, as `#cloud-config` must stay the first
+        line; reuse finds the tags anywhere in a file. `LICENSES/` keeps the `<year> <copyright
+        holders>` placeholders, the headers carry the copyright; the root `LICENSE` names the
+        holder, without a year. No years anywhere, after review: `--skip-existing` would leave them
+        stale, and they add little. REUSE has no "no license": it rejects `NONE` and `NOASSERTION`.
+        The header in the templates changes their hash, so `vm-image` asks for a `vm-reset`.
+        Verified: `just lint` passes, 38 files, MIT and MIT-0; an `MPL-2.0` header fails.
+        `just annotate` changes nothing on the tree; in a scratch repo, it annotated a new
+        script, `justfile`, `.just` and `.json` file, once, and left Markdown, `.gitignore`
+        and `user-data.yaml` alone, and a file of unknown type failed `reuse lint`.
 
 ## Done when
 

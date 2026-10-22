@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Jean-Luc Deprez <https://github.com/spangaer>
+# SPDX-License-Identifier: MIT
+
 # the locally built hello image, without a tag; test/hello.sh sets it through a kustomize overlay
 apiVersion: apps/v1
 kind: Deployment

@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Jean-Luc Deprez <https://github.com/spangaer>
+# SPDX-License-Identifier: MIT
+
 # smoke test from a public image, so it checks the cluster and ingress without the registry
 apiVersion: apps/v1
 kind: Deployment

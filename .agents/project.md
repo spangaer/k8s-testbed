@@ -38,5 +38,9 @@ component's folder, that component's. From the root, a module's recipes run as
 - giving the devcontainer privileges or devices is off limits, except for `/dev/kvm` when the
   host already grants it
 - a component keeps its state in `.local/<component>/`
+- every new file gets an SPDX header, MIT: run `just annotate`, never
+  `reuse annotate --recursive`, which can't skip what `REUSE.toml` covers: Markdown and
+  `.gitignore` under MIT-0, and JSON other than VS Code's JSONC under MIT; `just lint` checks
+  it all
 - the why of a detail goes in a comment next to it; what spans files goes in the component's
   `docs/udd/`

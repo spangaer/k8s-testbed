@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: Jean-Luc Deprez <https://github.com/spangaer>
+# SPDX-License-Identifier: MIT
+
 # fetch a pinned download into the cache once, and verify its checksum on every call
 # usage: fetch.sh <url> <sha256 or sha512> <file>
 set -euo pipefail

@@ -645,19 +645,31 @@ changing it.
         `just annotate` changes nothing on the tree; in a scratch repo, it annotated a new
         script, `justfile`, `.just` and `.json` file, once, and left Markdown, `.gitignore`
         and `user-data.yaml` alone, and a file of unknown type failed `reuse lint`.
+16. [x] `up` / `down` recipes, see [Recipes](#recipes-just): `up` starts the registry and the
+        cluster VM unless they run; `down` stops the build VM if it runs, the cluster VM and
+        the registry.
+
+        Done: both reuse the existing recipes, which already converge, so neither checks state
+        itself. `down` tries all 3 even if one fails and then fails, so a stuck VM doesn't
+        leave the rest running. The README's usage and the bump skill now use them.
+        Verified: `just lint`; `just testbed::up` from stopped (34 s, KVM) and again while
+        running; `down` with both VMs up stopped all 3, and again was a no-op; the node kept
+        its age across `down` and `up`.
 
 ## Done when
 
-- [ ] After a devcontainer rebuild, `just up` gives a `Ready` node in `kubectl get nodes`
-- [ ] the public image and the locally built `hello` image both serve requests, with `hello`
+- [x] After a devcontainer rebuild, `just up` gives a `Ready` node in `kubectl get nodes`
+
+- [x] the public image and the locally built `hello` image both serve requests, with `hello`
       built by either builder
-- [ ] `podman run --rm` of the `hello` image works in the devcontainer, and
+- [x] `podman run --rm` of the `hello` image works in the devcontainer, and
       `podman unshare cat /proc/self/uid_map` shows 3 lines
-- [ ] the cluster VM and the build VM run side by side within the host's RAM
-- [ ] `just down` followed by `just up` keeps the cluster state, and `just vm-reset` gives a
+- [x] the cluster VM and the build VM run side by side within the host's RAM
+- [x] `just down` followed by `just up` keeps the cluster state, and `just vm-reset` gives a
       fresh cluster without downloading the image or k3s again
-- [ ] no systemd is installed in the devcontainer (`dpkg -l systemd` finds nothing)
-- [ ] `reuse lint` passes
+
+- [x] no systemd is installed in the devcontainer (`dpkg -l systemd` finds nothing)
+- [x] `reuse lint` passes
 
 ## Risks and open points
 

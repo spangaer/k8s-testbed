@@ -15,12 +15,12 @@ access to `/dev/kvm`, else QEMU falls back to much slower software emulation. Th
 `testbed/`:
 
 ```sh
-just registry-up                     # local registry on 127.0.0.1:5000
-just vm-up                           # cluster VM; the first run downloads and boots for minutes
+just up                              # registry and cluster VM; the first run downloads and boots
+                                     # for minutes
 kubectl get nodes                    # KUBECONFIG is set in the devcontainer
 just test-hello-up                   # build, push and deploy hello with Podman
 curl http://hello.localhost:8080/    # served through the ingress
-just vm-down && just registry-down   # stop it all; the cluster state stays
+just down                            # stop it all, the build VM too; the cluster state stays
 ```
 
 `just` lists all recipes. From the repo root, run them as `just testbed::<recipe>`.

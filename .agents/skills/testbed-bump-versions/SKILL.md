@@ -43,7 +43,7 @@ anew and leaves the old files; the VMs refuse the new pins until they're reset.
    `testbed/`:
    - kubectl, krew or krew-index: `just setup`; `kubectl version --client` and
      `kubectl krew list` show the new versions
-   - Debian image or k3s: `just vm-reset`, then `just vm-up`; it fetches the new files, and
+   - Debian image or k3s: `just vm-reset`, then `just up`; it fetches the new files, and
      the node is `Ready`
    - Debian image: `just vm=build vm-reset`, then `just vm=build vm-up`, until `docker: ready`
    - always: `just test-all`, until `all passed`; it stops the VMs and registry it started

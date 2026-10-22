@@ -59,6 +59,20 @@ registry-up:
 registry-down:
     env/registry.sh down {{ quote(local) }}
 
+# start the registry and the cluster VM, unless they run, and wait until they're ready
+up: registry-up
+    just vm=cluster vm-up
+
+# stop the build VM if it runs, the cluster VM and the registry; tries all, even if one fails
+down:
+    #!/usr/bin/env bash
+    set -uo pipefail
+    status=0
+    just vm=build vm-down || status=1
+    just vm=cluster vm-down || status=1
+    just registry-down || status=1
+    exit "$status"
+
 # fetch downloads, create the VM's disk and seed; an existing VM is kept, see vm-reset
 vm-image:
     #!/usr/bin/env bash

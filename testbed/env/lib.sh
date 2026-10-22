@@ -15,11 +15,13 @@ note() { printf '%s: %s\n' "$prog" "$*"; }
 # marker in its command line, e.g. a config path, to tell it from other instances.
 # usage: live_pid <pid file> <executable> <marker>
 live_pid() {
-    local file=$1 exe=$2 marker=$3 pid cmdline
+    local file=$1 exe=$2 marker=$3 pid actual cmdline
     [[ -f $file ]] || return 0
     pid=$(<"$file")
     [[ $pid =~ ^[0-9]+$ ]] || return 0
-    [[ $(readlink "/proc/$pid/exe" 2>/dev/null) == "$exe" ]] || return 0
+    actual=$(readlink "/proc/$pid/exe" 2>/dev/null) || return 0
+    # package upgrades unlink the old executable while its process keeps running
+    [[ $actual == "$exe" || $actual == "$exe (deleted)" ]] || return 0
     cmdline=$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null) || return 0
     if [[ $cmdline == *"$marker"* ]]; then
         printf '%s\n' "$pid"
